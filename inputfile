@@ -1,2 +1,13 @@
-
+,:()
+'l'
+'\\'
+"Lelelel"
+1245
+0x001122FFaa
 Test12345
+       
+# Supposed to fail:
+# 'll'
+# '/ll'
+# -
+# "eniui

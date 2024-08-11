@@ -2,8 +2,20 @@
 
 #include<stdlib.h>
 #include<stdio.h>
+#include<stdbool.h>
 
-extern char* inputBuffer;
-extern size_t inputBufferSize;
+#include"token.h"
 
-void comp(char*input_buffer,size_t input_buffer_size);
+enum Pass{
+  INDEX,
+  COMP,
+};
+
+typedef struct CompContext{
+  struct Token*tokenHead;
+  struct Token*token;
+
+  enum Pass pass;
+}CompContext;
+
+CompContext*comp(char*filename);
