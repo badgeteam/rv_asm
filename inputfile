@@ -1,6 +1,7 @@
 
 .text
-
+.data
+.text
 # Supposed to fail:
 # 'll'
 # '/ll'

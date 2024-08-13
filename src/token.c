@@ -344,24 +344,22 @@ char*tokenTypeName(struct Token*token){
   }
 }
 
+void printToken(struct Token*token){
+  printf("Token Type=%s\tAddress=0x%lx\tSize=0x%lx\tFile=%s\tLine=%d\tContent=",
+    tokenTypeName(token),
+    (size_t)token->buff,
+    (size_t)(token->buffTop-token->buff),
+    token->file->filename,
+    token->line);
+  for(char*cp = token->buff;cp<token->buffTop;cp++){
+    printf("%c",*cp);
+  }
+  printf("\n");
+}
 
-
-void printTokenInfo(struct Token*token){
-
-
+void printTokenList(struct Token*token){
   while(token){
-    printf("Token Type=%s\tAddress=0x%lx\tSize=0x%lx\tFile=%s\tLine=%d\tContent=",
-	tokenTypeName(token),
-	(size_t)token->buff,
-	(size_t)(token->buffTop-token->buff),
-	token->file->filename,
-	token->line);
-    for(char*cp = token->buff;cp<token->buffTop;cp++){
-      printf("%c",*cp);
-    }
-    printf("\n");
+    printToken(token);
     token=token->next;
   }
-
-
 }

@@ -1,3 +1,4 @@
+#pragma once
 
 #include<stdint.h>
 #include<stdio.h>
@@ -64,4 +65,5 @@ uint32_t parseImm(struct Token*teken, uint32_t length);
 // Returns the name of the token. For Debug purposes
 char*tokenTypeName(struct Token*token);
 
-void printTokenInfo(struct Token*token);
+void printToken(struct Token*token);
+void printTokenList(struct Token*token);

@@ -10,7 +10,7 @@ int main(int argc, char**argv){
     return -1;  
   }
 
-  struct CompContext*ctx = comp(argv[1]);
+  comp(argv[1],argv[2]);
 
   return 0;
 }
