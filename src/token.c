@@ -217,37 +217,6 @@ struct Token*tokenizeFile(char*filename){
   return head;
 }
 
-struct Token*includePass(struct Token*tokenHead){
-  struct Token*token = tokenHead;
-  struct Token*include_identifier;
-  struct Token*include_space;
-  struct Token*include_string;
-  while(token){
-    if(token->type == Identifier && tokenIdentComp(".include",token)){
-      include_identifier = token;
-      if(!token->next)
-	compError("Unexpected EOF in after .include",token);
-      token=token->next;
-      if(token->type == Space){
-	include_space = token;
-	if(!token->next)
-	  compError("Unexpected EOF after .include",token);
-	token=token->next;
-      }
-      if(token->type != String)
-	compError("String expected after .include",token);
-      include_string = token;
-      token = token->next;
-
-      *((token->buffTop)-1) = '\0';
-
-
-
-    }
-    token=token->next;
-  }
-}
-
 struct Token*pruneTokenTypes(struct Token*tokenHead,uint32_t typeMask){
   struct Token*token = tokenHead;
   struct Token*trash;
