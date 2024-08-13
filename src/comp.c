@@ -28,6 +28,8 @@ void compPass(CompContext*ctx){
 CompContext*comp(char*filename){
   CompContext*ctx = malloc(sizeof(CompContext));
   ctx->tokenHead = tokenizeFile(filename);
+  printTokenInfo(ctx->tokenHead);
+  ctx->tokenHead = pruneTokenTypes(ctx->tokenHead,Space|Comment);
 
   printTokenInfo(ctx->tokenHead);
 //  ctx->token = ctx->tokenHead;
