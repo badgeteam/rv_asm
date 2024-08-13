@@ -31,6 +31,7 @@ void setSection(CompContext*ctx,size_t type,size_t flags){
     sec->size=0;
     sec->type = type;
     sec->flags = flags;
+    sec->buff = NULL;
 // sec->addr
 // sec->offset Set after buffer allocation in pass Comp
 // sec->link
@@ -46,14 +47,16 @@ void setSection(CompContext*ctx,size_t type,size_t flags){
     ctx->shstrtab->index += ctx->token->buffTop - ctx->token->buff;
     ctx->shstrtab->buff[ctx->shstrtab->index] = '\0';
     ctx->shstrtab->index++;
+
   }
 }
 
 void compPass(CompContext*ctx){
 
-  bool mode_text=false,mode_data=false;
+  bool mode_text=false,mode_data=false,mode_test=false;
   while(ctx->token){
-    
+   
+
     if(ctx->token->type == Newline){
       ctx->token = ctx->token->next;
       continue;
@@ -75,6 +78,7 @@ void compPass(CompContext*ctx){
 	setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR);
 	mode_text = true;
 	mode_data = false;
+	mode_test = true;
 	ctx->token=ctx->token->next;
 	continue;
       }
@@ -83,18 +87,33 @@ void compPass(CompContext*ctx){
 	setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_WRITE);
 	mode_text = false;
 	mode_data = true;
+	mode_test = true;
 	ctx->token = ctx->token->next;
 	continue;
       }
-
       if(mode_text){
-	ctx->token = ctx->token->next;
-	continue;
+//	ctx->token = ctx->token->next;
+//	continue;
       }
 
       if(mode_data){
-	ctx->token = ctx->token->next;
-	continue;
+//	ctx->token = ctx->token->next;
+//	continue;
+      }
+
+      if(mode_test){
+	if(tokenIdentComp("TestData",ctx->token)){
+	  if(ctx->pass == INDEX_BUFFERS){
+	    ctx->section->size += 8;
+	  }
+	  else if(ctx->pass== COMP){
+	    if(ctx->section->index+8<ctx->section->size)compError("Out Of Buff Memory",ctx->token);
+	    *((uint64_t*)(ctx->section->buff + ctx->section->index)) = 0xaabbccdd;
+	    ctx->section->index += 8;
+	  }
+	  ctx->token = ctx->token->next;
+	  continue;
+	}
       }
 
     }
@@ -125,6 +144,7 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->shstrtab->next = NULL;
   ctx->shstrtab->name_offset = 1;
   ctx->shstrtab->type = SHT_STRTAB;
+  ctx->shstrtab->buff = NULL;
   // Index Sections Pass
   ctx->pass = INDEX_SECTIONS;
   compPass(ctx);
@@ -139,8 +159,9 @@ void comp(char*inputfilename,char*outputfilename){
   compPass(ctx);
   // Allocate remaining section Buffers 
   for(Section*sec = ctx->sectionHead->next;sec;sec=sec->next){
-    if(!sec->buff)
+    if(!sec->buff){
       sec->buff = malloc(sec->size);
+    }
   }
   // Comp Pass
   ctx->token = ctx->tokenHead;

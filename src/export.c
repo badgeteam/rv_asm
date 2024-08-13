@@ -7,7 +7,7 @@
 
 void writeEhdr(size_t shnum, size_t shstrndx, FILE*fp){
   Elf32_Ehdr*ehdr = malloc(sizeof(Elf32_Ehdr));
-  
+ 
   //TODO Maybe write data 4 bytes at a time
   ehdr->e_ident[EI_MAG0] = ELFMAG0;
   ehdr->e_ident[EI_MAG1] = ELFMAG1;
@@ -39,7 +39,6 @@ void writeEhdr(size_t shnum, size_t shstrndx, FILE*fp){
   ehdr->e_shentsize = sizeof(Elf32_Shdr);
   ehdr->e_shnum = shnum;
   ehdr->e_shstrndx = shstrndx;
-
   fwrite(ehdr,sizeof(Elf32_Ehdr),1,fp);
 }
 
@@ -68,9 +67,7 @@ void export_elf(CompContext*ctx,char*outputfilename){
     fprintf(stderr,"Unable to write to file %s\n",outputfilename);
     exit(-1);
   }
-
    writeEhdr(ctx->shnum,ctx->shstrtab->sectionIndex,fp);
-
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next)
     writeShdr(sec,fp);
 
