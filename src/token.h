@@ -62,3 +62,4 @@ uint32_t parseImm(struct Token*teken, uint32_t length);
 // Returns the name of the token. For Debug purposes
 char*tokenTypeName(struct Token*token);
 
+

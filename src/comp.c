@@ -30,8 +30,8 @@ CompContext*comp(char*filename){
   ctx->tokenHead = tokenizeFile(filename);
 
   for(struct Token*token = ctx->tokenHead;token;token=token->next){
-    printf("Token Type=%s\tAddress=0x%lx\tSize=0x%lx\tContent=",
-	tokenTypeName(token),(size_t)token->buff,(size_t)(token->buffTop-token->buff));
+    printf("Token Type=%s\tAddress=0x%lx\tSize=0x%lx\tFile=%s\tLine=%d\tContent=",
+	tokenTypeName(token),(size_t)token->buff,(size_t)(token->buffTop-token->buff),token->file->filename,token->line);
     for(char*cp = token->buff;cp<token->buffTop;cp++){
       printf("%c",*cp);
     }

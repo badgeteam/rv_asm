@@ -14,7 +14,6 @@ enum Pass{
 typedef struct CompContext{
   struct Token*tokenHead;
   struct Token*token;
-
   enum Pass pass;
 }CompContext;
 

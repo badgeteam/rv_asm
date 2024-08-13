@@ -24,7 +24,7 @@ struct File*files = NULL;
 struct File*openFile(char*filename){
   // Look for duplicate File
   for(struct File*f = files;f;f=f->next)
-    if(strcmp(filename,f->filename))
+    if(strcmp(filename,f->filename)==0)
       duplicateFileError(filename);
   // Create File object and read file into memory
   FILE*fp = fopen(filename,"r");
@@ -47,31 +47,39 @@ struct Token*tokenizeFile(char*filename){
   struct File*file = openFile(filename);
   char*buff = file->buff;
   size_t size = file->size;
+
   struct Token*head = NULL,*current=NULL,*last = NULL;
+
   uint32_t line = 1;
   size_t index = 0;
   char c;
+  char*cp;
+  enum TokType type;
 
 
   while(index<size){
-    current = malloc(sizeof(struct Token));
-    if(last)
-      last->next = current;
-    else
-      head = current; 
-    current->prev = last;
-    current->buff = buff+index;
-    current->line = line;
-    current->file = file;
-    current->next = NULL;
-   
+    
+    cp = buff+index;
     c = buff[index];
+    
 
     switch(c){
-      case',':current->type = Colon;break;
-      case':':current->type = Doubledot;break;
-      case'(':current->type = BracketIn;break;
-      case')':current->type = BracketOut;break;
+      case',':
+	      index++;
+	      type = Colon;
+	      break;
+      case':':
+	      index++;
+	      type = Doubledot;
+	      break;
+      case'(':
+	      index++;
+	      type = BracketIn;
+	      break;
+      case')':
+	      index++;
+	      type = BracketOut;
+	      break;
       // Character
       case'\'':
 	      index++;
@@ -87,7 +95,8 @@ struct Token*tokenizeFile(char*filename){
 		tokenizeError("Unexpected EOF in Char",file,line);
 	      if(buff[index] != '\'')
 		tokenizeError("Char not terminated with '",file,line);
-	      current->type = Char;
+	      index++;
+	      type = Char;
 	      break;
       // String
       case'"':
@@ -104,7 +113,8 @@ struct Token*tokenizeFile(char*filename){
 		}
 		index++;
 	      }
-	      current->type = String;
+	      index++;
+	      type = String;
 	      break;
       // Number
       case'-':
@@ -119,57 +129,144 @@ struct Token*tokenizeFile(char*filename){
 		if(buff[index] == 'x'){
 		  do index++;
 		  while(isHexChar(buff[index]));
-		  index--;
-		  current->type = Number;
+		  type = Number;
 		  break;
 		}
 	      }
       case'1'...'9':
 	      do index++;
 	      while(index<size && buff[index]>='0' && buff[index]<='9');
-	      index--;
-	      current->type = Number;
+	      type = Number;
 	      break;
-      // Identifier
+      // Identifier or file include
       case'.':
-	      // TODO Handle Include
+	      if(index+8<size && StrCmp(".include",buff+index,buff+index+8)){
+		// file include
+		index+=8;
+		while(index<size && (buff[index]==' ' || buff[index]=='\t'))
+		  index++;
+		if(index>=size)
+		  tokenizeError("Unexpected EOF after .include",file,line);
+		if(buff[index]!='"')
+		  tokenizeError("Quotation mark expected after .include",file,line);
+		index++;
+		cp=buff+index;
+		while(index<size && buff[index]!='"')
+		  index++;
+		if(index>=size)
+		  tokenizeError("Unexpected EOF in Filename",file,line);
+		buff[index]='\0';
+		index++;
+		current = tokenizeFile(cp);
+		if(last)
+		  last->next=current;
+		else
+		  head = current;
+		current->prev = last;
+		while(current->next)
+		  current=current->next;
+		last = current;
+		continue;
+	      }
+	      // Identifier
       case'a'...'z':
       case'A'...'Z':
       case'_':
 	      do index++;
 	      while(index<size && isIdentChar(buff[index]));
-	      index--;
-	      current->type = Identifier;
+	      type = Identifier;
 	      break;
       // Space
       case' ':
       case'\t':
 	      do index++;
 	      while(index<size && (buff[index]==' ' || buff[index]=='\t'));
-	      index--;
-	      current->type = Space;
+	      type = Space;
 	      break;
       // Comment
       case'#':
 	      do index++;
 	      while(index<size && buff[index] != '\n');
-	      index--;
-	      current->type = Comment;
+	      type = Comment;
 	      break;
       // Newline
       case'\n':
-	current->type = Newline;
-	line++;
-	break;
+	      type = Newline;
+	      line++;
+	      index++;
+	      break;
+      default:
+	      tokenizeError("Unknown Char",file,line);
     }
+    
 
-    index++;
+    current = malloc(sizeof(struct Token));
+    if(last)
+      last->next = current;
+    else
+      head = current; 
+    current->prev = last;
+    current->line = line;
+    current->file = file;
+    current->next = NULL;
+    current->buff = cp;
     current->buffTop = buff + index;
+    current->type = type;
     last = current;
   }
   return head;
 }
 
+struct Token*includePass(struct Token*tokenHead){
+  struct Token*token = tokenHead;
+  struct Token*include_identifier;
+  struct Token*include_space;
+  struct Token*include_string;
+  while(token){
+    if(token->type == Identifier && tokenIdentComp(".include",token)){
+      include_identifier = token;
+      if(!token->next)
+	compError("Unexpected EOF in after .include",token);
+      token=token->next;
+      if(token->type == Space){
+	include_space = token;
+	if(!token->next)
+	  compError("Unexpected EOF after .include",token);
+	token=token->next;
+      }
+      if(token->type != String)
+	compError("String expected after .include",token);
+      include_string = token;
+      token = token->next;
+
+      *((token->buffTop)-1) = '\0';
+
+
+
+    }
+    token=token->next;
+  }
+}
+
+struct Token*pruneTokenTypes(struct Token*tokenHead,uint32_t typeMask){
+  struct Token*token = tokenHead;
+  struct Token*trash;
+  while(token){
+    if(token->type & typeMask){
+      trash = token;
+      token = token->next;
+      if(token)
+	token->prev = trash->prev;
+      if(trash->prev)
+	trash->prev->next = token;
+      else
+	tokenHead=token;
+      free(trash);
+    }
+    token=token->next;
+  }
+  return tokenHead;
+}
 
 bool tokenIdentComp(char*str,struct Token*token){
   if(token->type != Identifier)return false;

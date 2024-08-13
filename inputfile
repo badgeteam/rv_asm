@@ -1,11 +1,15 @@
 ,:()
+
+)))
 'l'
 '\\'
 "Lelelel"
 1245
 0x001122FFaa
 Test12345
-       
+
+.include "input2"
+
 # Supposed to fail:
 # 'll'
 # '/ll'
