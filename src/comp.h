@@ -24,6 +24,7 @@ typedef struct Section{
   size_t index;
   size_t sectionIndex;
   size_t size;
+  size_t type,flags,addr,offset,link,entsize,addralign;
   struct Section*next;
 
 
@@ -38,6 +39,8 @@ typedef struct CompContext{
   Section*sectionTail;
   Section*section;
   Section*shstrtab;
+
+  size_t shnum;
 
 }CompContext;
 

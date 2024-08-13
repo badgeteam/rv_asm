@@ -1,12 +1,13 @@
 
 #include<string.h>
+#include<elf.h>
 
 #include"comp.h"
 #include"util.h"
+#include"export.h"
 
 
-
-void setSection(CompContext*ctx){
+void setSection(CompContext*ctx,size_t type,size_t flags){
   if(ctx->pass == INDEX_SECTIONS){
     ctx->shstrtab->size += ctx->token->buffTop - ctx->token->buff + 1;
     return;
@@ -28,8 +29,15 @@ void setSection(CompContext*ctx){
     sec->name_offset = ctx->shstrtab->index;
     sec->index=0;
     sec->size=0;
-    sec->sectionIndex = ctx->sectionHead->sectionIndex+1;
+    sec->type = type;
+    sec->flags = flags;
+// sec->addr
+// sec->offset Set after buffer allocation in pass Comp
+// sec->link
+// sec->entsize
     sec->next = NULL;
+    ctx->shnum++;
+    sec->sectionIndex = ctx->shnum;
     ctx->sectionTail->next = sec;
     ctx->sectionTail = sec;
     ctx->section = sec;
@@ -64,7 +72,7 @@ void compPass(CompContext*ctx){
 
       // Directive
       if(tokenIdentComp(".text",ctx->token)){
-	setSection(ctx);
+	setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR);
 	mode_text = true;
 	mode_data = false;
 	ctx->token=ctx->token->next;
@@ -72,7 +80,7 @@ void compPass(CompContext*ctx){
       }
 
       if(tokenIdentComp(".data",ctx->token)){
-	setSection(ctx);
+	setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_WRITE);
 	mode_text = false;
 	mode_data = true;
 	ctx->token = ctx->token->next;
@@ -103,39 +111,56 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->tokenHead = pruneTokenTypes(ctx->tokenHead,Space|Comment);
   ctx->token = ctx->tokenHead;
   ctx->section = NULL;
+  ctx->shnum = 2;
+  // Create Undef Section
+  ctx->sectionHead = calloc(sizeof(Section),1);
+
   // Create shstrtab
   ctx->shstrtab = malloc(sizeof(Section));
-  ctx->sectionHead = ctx->shstrtab;
+  ctx->sectionHead->next = ctx->shstrtab;
   ctx->sectionTail = ctx->shstrtab;
-  ctx->shstrtab->size = 10;	// Sizeof(".shstrtab\0")
+  ctx->shstrtab->size = 11;	// Sizeof(".shstrtab\0")
   ctx->shstrtab->index = 0;
   ctx->shstrtab->sectionIndex = 1;	// TODO Check for right value
   ctx->shstrtab->next = NULL;
-  ctx->shstrtab->name_offset = 0;
+  ctx->shstrtab->name_offset = 1;
+  ctx->shstrtab->type = SHT_STRTAB;
   // Index Sections Pass
   ctx->pass = INDEX_SECTIONS;
   compPass(ctx);
   // Allocate shstrtab Buffer and insert its own name
   ctx->shstrtab->buff = malloc(ctx->shstrtab->size);
-  memcpy(ctx->shstrtab->buff,".shstrtab\0",10);
-  ctx->shstrtab->index += 10;
+  memcpy(ctx->shstrtab->buff,"\0.shstrtab\0",11);
+  ctx->shstrtab->index += 11;
   // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
   ctx->token = ctx->tokenHead;
   ctx->pass = INDEX_BUFFERS;
   ctx->section = NULL;
   compPass(ctx);
   // Allocate remaining section Buffers 
-  for(Section*sec = ctx->sectionHead;sec;sec=sec->next)
+  for(Section*sec = ctx->sectionHead->next;sec;sec=sec->next){
     if(!sec->buff)
       sec->buff = malloc(sec->size);
+  }
   // Comp Pass
   ctx->token = ctx->tokenHead;
   ctx->pass = COMP;
   ctx->section = NULL;
   compPass(ctx);
 
+  ctx->sectionHead->next->offset = sizeof(Elf32_Ehdr) + sizeof(Elf32_Shdr) * ctx->shnum;
+  for(Section*sec = ctx->sectionHead->next;sec->next;sec=sec->next){
+    sec->next->offset = sec->offset + sec->index;
+  }
+
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next)    
-    printf("Section %s\t size=%ld\n",ctx->shstrtab->buff+sec->name_offset, sec->size);
+    printf("Section %s\t size=%ld\t offset=%ld\n",
+	ctx->shstrtab->buff+sec->name_offset,
+	sec->size,
+	sec->offset);
+
+  
+  export_elf(ctx,outputfilename);
 
 }
 
