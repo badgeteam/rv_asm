@@ -137,9 +137,9 @@ void compPass(CompContext*ctx){
 void comp(char*inputfilename,char*outputfilename){
   // Create CompContext
   CompContext*ctx = malloc(sizeof(CompContext));
+
   // Tokenize File
   ctx->tokenHead = tokenizeFile(inputfilename);
-  ctx->tokenHead = pruneTokenTypes(ctx->tokenHead,Space|Comment);
 
   // Init Sections
   ctx->shnum = 4;

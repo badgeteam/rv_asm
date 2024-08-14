@@ -182,13 +182,13 @@ struct Token*tokenizeFile(char*filename){
 	      do index++;
 	      while(index<size && (buff[index]==' ' || buff[index]=='\t'));
 	      type = Space;
-	      break;
+	      continue;
       // Comment
       case'#':
 	      do index++;
 	      while(index<size && buff[index] != '\n');
 	      type = Comment;
-	      break;
+	      continue;
       // Newline
       case'\n':
 	      type = Newline;
@@ -217,25 +217,6 @@ struct Token*tokenizeFile(char*filename){
   return head;
 }
 
-struct Token*pruneTokenTypes(struct Token*tokenHead,uint32_t typeMask){
-  struct Token*token = tokenHead;
-  struct Token*trash;
-  while(token){
-    if(token->type & typeMask){
-      trash = token;
-      token = token->next;
-      if(token)
-	token->prev = trash->prev;
-      if(trash->prev)
-	trash->prev->next = token;
-      else
-	tokenHead=token;
-      free(trash);
-    }
-    token=token->next;
-  }
-  return tokenHead;
-}
 
 bool tokenIdentComp(char*str,struct Token*token){
   if(token->type != Identifier)return false;

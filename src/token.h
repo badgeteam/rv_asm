@@ -42,8 +42,6 @@ struct Token{
 // Reads files recursively and creates a Tokenchain
 struct Token*tokenizeFile(char*filename);
 
-struct Token*pruneTokenTypes(struct Token*tokenHead,uint32_t typeMask);
-
 // Checks if the token is of type Ident and compares the strings
 bool tokenIdentComp(char*str,struct Token*token);
 
