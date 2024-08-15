@@ -4,6 +4,9 @@
 .data
 .ascii "Test" "\t\n\0"
 .string "Test"
+
+.zero 0x100
+
 .text
 .rodata
 .bss

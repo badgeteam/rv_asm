@@ -159,6 +159,26 @@ bool compData(CompContext*ctx){
       }
     return true;
   }
+
+  if(tokenIdentComp(".zero",ctx->token)){
+    if(!ctx->token->next)
+      compError("Unexpected EOF",ctx->token);
+    ctx->token = ctx->token->next;
+    if(ctx->token->type != Number)
+      compError("Number Expected after .zero",ctx->token);
+    if(ctx->pass == INDEX)
+      ctx->section->size += parseUInt(ctx->token);
+    else if(ctx->pass == COMP){
+      uint32_t number_of_zeros = parseUInt(ctx->token);
+      for(uint32_t i = 0;i<number_of_zeros;i++){
+	ctx->section->buff[ctx->section->index] = 0;
+	ctx->section->index++;
+      }
+    }
+    ctx->token = ctx->token->next;
+    return true;
+  }
+
   return false;
 }
 
