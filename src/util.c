@@ -65,7 +65,7 @@ void compWarning(char*msg,struct Token*token){
 
 void compError(char*msg,struct Token*token){
 	fprintf(stderr,"Comp Error in file %s line %d.\n",token->file->filename,token->line);
-
+	
 	for(char*cp = token->buff; cp<token->buffTop; cp++)
 		fprintf(stderr,"%c",*cp);
 	fprintf(stderr,"\n");

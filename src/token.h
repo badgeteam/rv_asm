@@ -23,9 +23,7 @@ enum TokType{
   String	= 0x00000020,
   Number	= 0x00000040,
   Identifier	= 0x00000080,
-  Space		= 0x00000100,
-  Comment	= 0x00000200,
-  Newline	= 0x00000400,
+  Newline	= 0x00000100,
 };
 
 struct Token{

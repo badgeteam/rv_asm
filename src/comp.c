@@ -141,6 +141,8 @@ void comp(char*inputfilename,char*outputfilename){
   // Tokenize File
   ctx->tokenHead = tokenizeFile(inputfilename);
 
+//  printTokenList(ctx->tokenHead);
+
   // Init Sections
   ctx->shnum = 4;
   ctx->sectionHead = calloc(sizeof(Section),1);

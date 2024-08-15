@@ -181,13 +181,11 @@ struct Token*tokenizeFile(char*filename){
       case'\t':
 	      do index++;
 	      while(index<size && (buff[index]==' ' || buff[index]=='\t'));
-	      type = Space;
 	      continue;
       // Comment
       case'#':
 	      do index++;
 	      while(index<size && buff[index] != '\n');
-	      type = Comment;
 	      continue;
       // Newline
       case'\n':
@@ -318,8 +316,6 @@ char*tokenTypeName(struct Token*token){
     case String:	return "String";
     case Number:	return "Number";
     case Identifier:	return "Identifier";
-    case Space:		return "Space";
-    case Comment:	return "Comment";
     case Newline:	return "Newline";
     default:		return "";
   }
