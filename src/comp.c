@@ -145,6 +145,20 @@ bool compData(CompContext*ctx){
     }
     return true;
   }
+
+  if(tokenIdentComp(".string",ctx->token)){
+    ctx->token = ctx->token->next;
+    while(ctx->token && ctx->token->type & String){
+      compString(ctx);
+    }
+      if(ctx->pass == INDEX)
+	ctx->section->size ++;
+      else if(ctx->pass == COMP){
+	ctx->section->buff[ctx->section->index] = '\0';
+	ctx->section->index ++;
+      }
+    return true;
+  }
   return false;
 }
 
@@ -155,19 +169,18 @@ bool compBss(CompContext*ctx){
 
 
 void compPass(CompContext*ctx){
-
   ctx->token = ctx->tokenHead;
   ctx->section = NULL;
 
   while(ctx->token){
    
-
     if(ctx->token->type == Newline){
       ctx->token = ctx->token->next;
       continue;
     }
 
-    // Directive
+    // Sections
+
     if(tokenIdentComp(".text",ctx->token)){
       setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR);
       ctx->token=ctx->token->next;
