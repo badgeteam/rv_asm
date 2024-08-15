@@ -8,8 +8,8 @@
 //#include"section.h"
 
 enum Pass{
-  INDEX_SECTIONS,
-  INDEX_BUFFERS,
+  SHSTRTAB,
+  INDEX,
   COMP,
 };
 

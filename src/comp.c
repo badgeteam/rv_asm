@@ -6,8 +6,11 @@
 #include"util.h"
 #include"export.h"
 
+/* This Function sets the current section to assemble into.
+ * If the section does not exist it gets created.
+ */
 void setSection(CompContext*ctx,uint32_t type,uint32_t flags){
-  if(ctx->pass == INDEX_SECTIONS){
+  if(ctx->pass == SHSTRTAB){
     ctx->shstrtab->size += ctx->token->buffTop - ctx->token->buff + 1;
     return;
   }
@@ -22,7 +25,7 @@ void setSection(CompContext*ctx,uint32_t type,uint32_t flags){
     sec=sec->next;
   }
   // Create New Section
-  if(ctx->pass == INDEX_BUFFERS){
+  if(ctx->pass == INDEX){
     // Allocate Section
     sec = malloc(sizeof(Section));
     sec->index=0;
@@ -53,6 +56,50 @@ void setSection(CompContext*ctx,uint32_t type,uint32_t flags){
   }
 }
 
+
+void initSections(CompContext*ctx){
+  ctx->shnum = 4;
+  ctx->sectionHead = calloc(sizeof(Section),1);
+  Section*shstrtab = malloc(sizeof(Section));
+  Section*strtab = malloc(sizeof(Section));
+  Section*symtab = malloc(sizeof(Section));
+  // Link Sections
+  ctx->shstrtab = shstrtab;
+  ctx->strtab = strtab;
+  ctx->symtab = symtab;
+
+  ctx->sectionHead->next = ctx->shstrtab;
+  ctx->shstrtab->next = strtab;
+  ctx->strtab->next = symtab;
+  ctx->symtab->next = NULL;
+  ctx->sectionTail = symtab;
+  // Init shtrtab
+  shstrtab->size = 27;
+  shstrtab->index = 0;
+  shstrtab->sectionIndex = 1;
+  shstrtab->buff = NULL;
+  shstrtab->type = SHT_STRTAB;
+  shstrtab->name_offset = 1;
+
+  strtab->name_offset = 11;
+  strtab->index = 0;
+  strtab->size = 0;
+  strtab->buff = NULL;
+  strtab->type = SHT_STRTAB;
+  strtab->sectionIndex = 2;
+
+  symtab->name_offset = 19;
+  symtab->index = 0;
+  symtab->size = 0;
+  symtab->buff = NULL;
+  symtab->type = SHT_SYMTAB;
+  symtab->sectionIndex = 3;
+  symtab->link = 2;
+
+
+}
+
+
 void compPass(CompContext*ctx){
 
   ctx->token = ctx->tokenHead;
@@ -70,7 +117,7 @@ void compPass(CompContext*ctx){
 
     if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
       // Symbol
- 	if(ctx->pass == INDEX_BUFFERS){
+ 	if(ctx->pass == INDEX){
 	  ctx->symtab->size += sizeof(Elf32_Sym);
 	}else if(ctx->pass == COMP){
 //	  Elf32_Sym*sym =(Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
@@ -115,7 +162,7 @@ void compPass(CompContext*ctx){
 
     if(mode_test){
       if(tokenIdentComp("TestData",ctx->token)){
-	if(ctx->pass == INDEX_BUFFERS){
+	if(ctx->pass == INDEX){
 	  ctx->section->size += 8;
 	}
 	else if(ctx->pass== COMP){
@@ -141,50 +188,11 @@ void comp(char*inputfilename,char*outputfilename){
   // Tokenize File
   ctx->tokenHead = tokenizeFile(inputfilename);
 
-//  printTokenList(ctx->tokenHead);
-
   // Init Sections
-  ctx->shnum = 4;
-  ctx->sectionHead = calloc(sizeof(Section),1);
-  Section*shstrtab = malloc(sizeof(Section));
-  Section*strtab = malloc(sizeof(Section));
-  Section*symtab = malloc(sizeof(Section));
-  // Link Sections
-  ctx->shstrtab = shstrtab;
-  ctx->strtab = strtab;
-  ctx->symtab = symtab;
-
-  ctx->sectionHead->next = ctx->shstrtab;
-  ctx->shstrtab->next = strtab;
-  ctx->strtab->next = symtab;
-  ctx->symtab->next = NULL;
-  ctx->sectionTail = symtab;
-  // Init shtrtab
-  shstrtab->size = 27;
-  shstrtab->index = 0;
-  shstrtab->sectionIndex = 1;
-  shstrtab->buff = NULL;
-  shstrtab->type = SHT_STRTAB;
-  shstrtab->name_offset = 1;
-
-  strtab->name_offset = 11;
-  strtab->index = 0;
-  strtab->size = 0;
-  strtab->buff = NULL;
-  strtab->type = SHT_STRTAB;
-  strtab->sectionIndex = 2;
-
-  symtab->name_offset = 19;
-  symtab->index = 0;
-  symtab->size = 0;
-  symtab->buff = NULL;
-  symtab->type = SHT_SYMTAB;
-  symtab->sectionIndex = 3;
-  symtab->link = 2;
-
+  initSections(ctx);
 
   // Index Sections Pass
-  ctx->pass = INDEX_SECTIONS;
+  ctx->pass = SHSTRTAB;
   compPass(ctx);
 
   // Allocate shstrtab Buffer and insert its own name
@@ -193,7 +201,7 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->shstrtab->index += 27;
 
   // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
-  ctx->pass = INDEX_BUFFERS;
+  ctx->pass = INDEX;
   compPass(ctx);
 
   // Allocate remaining section Buffers 
@@ -213,7 +221,7 @@ void comp(char*inputfilename,char*outputfilename){
     sec->next->offset = sec->offset + sec->index;
   }
 
-  // Print
+  // Print Sections
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next)    
     printf("Section %s\t size=%ld\t offset=%ld\n",
 	ctx->shstrtab->buff+sec->name_offset,
