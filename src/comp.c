@@ -100,13 +100,65 @@ void initSections(CompContext*ctx){
 }
 
 
+void compString(CompContext*ctx){
+  char c;
+  for(char*cp = ctx->token->buff + 1; cp<ctx->token->buffTop - 1;cp++){
+    if(*cp == '\\'){
+      cp++;
+      if(ctx->pass == INDEX){
+	ctx->section->size ++;
+      }else if(ctx->pass == COMP){
+	c = *cp;
+	switch(c){
+	  case'0':c = '\0';break;
+	  case'a':c = '\a';break;
+	  case'b':c = '\b';break;
+	  case't':c = '\t';break;
+	  case'n':c = '\n';break;
+	  case'v':c = '\v';break;
+	  case'f':c = '\f';break;
+	  case'r':c = '\r';break;
+	  case'\\':c = '\\';break;
+	  case'"':c = '"';break;
+	}
+	ctx->section->buff[ctx->section->index] = c;
+	ctx->section->index ++;
+      }
+    }else{
+      if(ctx->pass == INDEX){
+	ctx->section->size ++;
+      }else if(ctx->pass == COMP){
+	ctx->section->buff[ctx->section->index] = *cp;
+	ctx->section->index ++;
+      }
+    }
+  }
+  ctx->token = ctx->token->next;
+}
+
+
+bool compData(CompContext*ctx){
+  if(tokenIdentComp(".ascii",ctx->token)){
+    ctx->token = ctx->token->next;
+    while(ctx->token && ctx->token->type & String){
+      compString(ctx);
+    }
+    return true;
+  }
+  return false;
+}
+
+
+bool compBss(CompContext*ctx){
+  return false;
+}
+
+
 void compPass(CompContext*ctx){
 
   ctx->token = ctx->tokenHead;
   ctx->section = NULL;
 
-
-  bool mode_text=false,mode_data=false,mode_test=false,mode_bss=false;
   while(ctx->token){
    
 
@@ -114,6 +166,38 @@ void compPass(CompContext*ctx){
       ctx->token = ctx->token->next;
       continue;
     }
+
+    // Directive
+    if(tokenIdentComp(".text",ctx->token)){
+      setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR);
+      ctx->token=ctx->token->next;
+      continue;
+    }
+
+    if(tokenIdentComp(".data",ctx->token)){
+      setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_WRITE);
+      ctx->token = ctx->token->next;
+      continue;
+    }
+
+    if(tokenIdentComp(".rodata",ctx->token)){
+      setSection(ctx,SHT_PROGBITS,SHF_ALLOC);
+      ctx->token = ctx->token->next;
+      continue;
+    }
+
+    if(tokenIdentComp(".bss",ctx->token)){
+      setSection(ctx,SHT_NOBITS,SHF_ALLOC|SHF_WRITE);
+      ctx->token = ctx->token->next;
+      continue;
+    }
+
+    if(ctx->pass == SHSTRTAB){
+      while(ctx->token && ctx->token->type != Newline)
+	ctx->token = ctx->token->next;
+      continue;
+    }
+
 
     if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
       // Symbol
@@ -132,73 +216,34 @@ void compPass(CompContext*ctx){
     }
 
 
-    // Directive
-    if(tokenIdentComp(".text",ctx->token)){
-      setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR);
-      mode_text = true;
-      mode_data = false;
-      mode_test = true;
-      ctx->token=ctx->token->next;
-      continue;
-    }
 
-    if(tokenIdentComp(".data",ctx->token)){
-      setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_WRITE);
-      mode_text = false;
-      mode_data = true;
-      mode_test = true;
-      ctx->token = ctx->token->next;
-      continue;
-    }
 
-    if(tokenIdentComp(".rodata",ctx->token)){
-      setSection(ctx,SHT_PROGBITS,SHF_ALLOC);
-      mode_text = false;
-      mode_data = true;
-      mode_test = true;
-      ctx->token = ctx->token->next;
-      continue;
-    }
-
-    if(tokenIdentComp(".bss",ctx->token)){
-      setSection(ctx,SHT_NOBITS,SHF_ALLOC|SHF_WRITE);
-      mode_bss=true;
-      mode_data = false;
-      mode_text=false;
-      mode_test=false;
-      ctx->token = ctx->token->next;
-      continue;
-    }
-
-    if(mode_text){
-//	ctx->token = ctx->token->next;
-//	continue;
-    }
-
-    if(mode_data){
-//	ctx->token = ctx->token->next;
-//	continue;
-    }
-
-    if(mode_bss){
-
-    }
-
-    if(mode_test){
-      if(tokenIdentComp("TestData",ctx->token)){
-	if(ctx->pass == INDEX){
-	  ctx->section->size += 8;
+    if(ctx->section){
+      if(ctx->section->type == SHT_PROGBITS){
+	if(ctx->section->flags == (SHF_ALLOC|SHF_EXECINSTR)){
+	  // text
 	}
-	else if(ctx->pass== COMP){
-	  if(ctx->section->index+8<ctx->section->size)compError("Out Of Buff Memory",ctx->token);
-	  *((uint64_t*)(ctx->section->buff + ctx->section->index)) = 0xaabbccdd;
-	  ctx->section->index += 8;
+	
+	if(ctx->section->flags == (SHF_ALLOC|SHF_WRITE)){
+	  // data
+	  if(compData(ctx))
+	    continue;
 	}
-	ctx->token = ctx->token->next;
-	continue;
+
+	if(ctx->section->flags == SHF_ALLOC){
+	  // rodata
+	  if(compData(ctx))
+	    continue;
+	}
+
       }
+      if(ctx->section->type == SHT_NOBITS)
+	if(ctx->section->flags == (SHF_ALLOC|SHF_WRITE)){
+	  // bss
+	  if(compBss(ctx))
+	    continue;
+	}
     }
-
 
     compError("Unexpected Token in Main Switch",ctx->token);
   }

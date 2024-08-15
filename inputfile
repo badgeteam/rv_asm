@@ -1,9 +1,8 @@
 
 .text
 
-TestData
-
 .data
+.ascii "Test" "\t\n\0"
 .text
 .rodata
 .bss
