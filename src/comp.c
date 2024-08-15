@@ -106,7 +106,7 @@ void compPass(CompContext*ctx){
   ctx->section = NULL;
 
 
-  bool mode_text=false,mode_data=false,mode_test=false;
+  bool mode_text=false,mode_data=false,mode_test=false,mode_bss=false;
   while(ctx->token){
    
 
@@ -150,6 +150,26 @@ void compPass(CompContext*ctx){
       ctx->token = ctx->token->next;
       continue;
     }
+
+    if(tokenIdentComp(".rodata",ctx->token)){
+      setSection(ctx,SHT_PROGBITS,SHF_ALLOC);
+      mode_text = false;
+      mode_data = true;
+      mode_test = true;
+      ctx->token = ctx->token->next;
+      continue;
+    }
+
+    if(tokenIdentComp(".bss",ctx->token)){
+      setSection(ctx,SHT_NOBITS,SHF_ALLOC|SHF_WRITE);
+      mode_bss=true;
+      mode_data = false;
+      mode_text=false;
+      mode_test=false;
+      ctx->token = ctx->token->next;
+      continue;
+    }
+
     if(mode_text){
 //	ctx->token = ctx->token->next;
 //	continue;
@@ -158,6 +178,10 @@ void compPass(CompContext*ctx){
     if(mode_data){
 //	ctx->token = ctx->token->next;
 //	continue;
+    }
+
+    if(mode_bss){
+
     }
 
     if(mode_test){

@@ -5,7 +5,8 @@ TestData
 
 .data
 .text
-
+.rodata
+.bss
 
      #Comment
 
