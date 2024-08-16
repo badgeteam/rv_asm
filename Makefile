@@ -2,8 +2,8 @@
 CC = gcc
 EXE = rvasm
 
-$(EXE): objs/main.o objs/comp.o objs/token.o objs/util.o objs/export.o
-	$(CC) -o $(EXE) objs/main.o objs/comp.o objs/token.o objs/util.o objs/export.o
+$(EXE): objs/main.o objs/comp.o objs/token.o objs/util.o objs/export.o objs/data.o
+	$(CC) -o $(EXE) objs/main.o objs/comp.o objs/token.o objs/util.o objs/export.o objs/data.o
 
 objs/main.o: src/main.c
 	$(CC) -c -o objs/main.o src/main.c
@@ -19,4 +19,7 @@ objs/util.o: src/util.c src/util.h
 
 objs/export.o: src/export.c src/export.h
 	$(CC) -c -o objs/export.o src/export.c
+
+objs/data.o: src/data.c src/data.h
+	$(CC) -c -o objs/data.o src/data.c
 
