@@ -35,6 +35,25 @@ uint8_t parseHexChar(char c){
 	}
 }
 
+char parseChar(char*cp){
+  if(*cp=='\\'){
+    switch(*cp+1){
+      case'0':return '\0';
+      case'a':return '\a';
+      case'b':return '\b';
+      case't':return '\t';
+      case'n':return '\n';
+      case'v':return '\v';
+      case'f':return '\f';
+      case'r':return '\r';
+      case'\\':return '\\';
+      case'"':return '"';
+      default:return 0;
+    }
+  }
+  return *cp;
+}
+
 bool StrCmpBegin(char*str,char*buff,char*buffTop){
 	while(true){
 		if(buff>=buffTop)return false;

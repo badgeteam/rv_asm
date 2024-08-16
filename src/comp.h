@@ -41,7 +41,7 @@ typedef struct CompContext{
   Section*shstrtab;
   Section*strtab;
   Section*symtab;
-
+  Section*rela;
   size_t shnum;
 
 }CompContext;

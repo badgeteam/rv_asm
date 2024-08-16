@@ -1,2 +1,2 @@
-rv_asm
-objs/
+./rv_asm
+objs/*

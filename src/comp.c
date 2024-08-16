@@ -58,23 +58,26 @@ void setSection(CompContext*ctx,uint32_t type,uint32_t flags){
 
 
 void initSections(CompContext*ctx){
-  ctx->shnum = 4;
+  ctx->shnum = 5;
   ctx->sectionHead = calloc(sizeof(Section),1);
   Section*shstrtab = malloc(sizeof(Section));
   Section*strtab = malloc(sizeof(Section));
   Section*symtab = malloc(sizeof(Section));
+  Section*rela = malloc(sizeof(Section));
   // Link Sections
   ctx->shstrtab = shstrtab;
   ctx->strtab = strtab;
   ctx->symtab = symtab;
+  ctx->rela = rela;
 
   ctx->sectionHead->next = ctx->shstrtab;
   ctx->shstrtab->next = strtab;
   ctx->strtab->next = symtab;
-  ctx->symtab->next = NULL;
-  ctx->sectionTail = symtab;
+  ctx->symtab->next = rela;
+  ctx->rela->next = NULL;
+  ctx->sectionTail = rela;
   // Init shtrtab
-  shstrtab->size = 27;
+  shstrtab->size = 33;
   shstrtab->index = 0;
   shstrtab->sectionIndex = 1;
   shstrtab->buff = NULL;
@@ -96,6 +99,13 @@ void initSections(CompContext*ctx){
   symtab->sectionIndex = 3;
   symtab->link = 2;
 
+  rela->name_offset = 27;
+  rela->index = 0;
+  rela->size = 0;
+  rela->buff = NULL;
+  rela->type = SHT_RELA;
+  rela->sectionIndex = 4;
+  rela->link = 0;
 
 }
 
@@ -178,6 +188,30 @@ bool compData(CompContext*ctx){
     ctx->token = ctx->token->next;
     return true;
   }
+
+//  if(tokenIdentComp(".byte",ctx->token)){
+//    if(!ctx->token->next)
+//      compError("Unexpecdet EOF",ctx->token);
+//    ctx->token = ctx->token->next;
+//    while(ctx->token && ctx->token->type & Number | Char){
+//      if(ctx->pass == INDEX)
+//	ctx->section->size ++;
+//      else if(ctx->pass == COMP){
+//	if(ctx->token->type == Number){
+//	  ctx->section->buff[ctx->section->index] = (uint8_t)parseUImm(ctx->token,8);
+//	}else if(ctx->token->type == Char){
+//	  ctx->section->buff[ctx->section->index] = (uint8_t)parseChar(ctx->token->buff+1);
+//	}
+//	ctx->section->index++;
+ //     }
+//      ctx->token = ctx->token->next;
+//      if(!ctx->token)
+//	return true;
+//      if(! (ctx->token->type & Colon||Newline) )
+//	compError("Colon or Newline expected after byte in .byte",ctx->token);
+//      ctx->token = ctx->token->next;
+//    }
+//  }
 
   return false;
 }
@@ -286,7 +320,6 @@ void compPass(CompContext*ctx){
 void comp(char*inputfilename,char*outputfilename){
   // Create CompContext
   CompContext*ctx = malloc(sizeof(CompContext));
-
   // Tokenize File
   ctx->tokenHead = tokenizeFile(inputfilename);
 
@@ -299,8 +332,8 @@ void comp(char*inputfilename,char*outputfilename){
 
   // Allocate shstrtab Buffer and insert its own name
   ctx->shstrtab->buff = malloc(ctx->shstrtab->size);
-  memcpy(ctx->shstrtab->buff,"\0.shstrtab\0.strtab\0.symtab\0",27);
-  ctx->shstrtab->index += 27;
+  memcpy(ctx->shstrtab->buff,"\0.shstrtab\0.strtab\0.symtab\0.rela\0",33);
+  ctx->shstrtab->index += 33;
 
   // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
   ctx->pass = INDEX;

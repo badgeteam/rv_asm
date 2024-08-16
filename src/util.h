@@ -7,7 +7,7 @@
 bool isHexChar(char c);
 bool isIdentChar(char c);
 uint8_t parseHexChar(char c);
-
+char parseChar(char*cp);
 
 bool StrCmpBegin(char*str,char*buff,char*buffTop);
 bool StrCmp(char*str,char*buff,char*buffTop);
