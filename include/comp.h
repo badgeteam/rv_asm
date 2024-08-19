@@ -21,7 +21,15 @@ enum Pass{
 enum AsmMode{
   DATA  = 0x0001,
   BSS   = 0x0002,
-  RV32I = 0x0004,
+  SYM   = 0x0004,
+
+  RV32I = 0x0100,
+  RV32M = 0x0200,
+  RV32A = 0x0400,
+  RV32F = 0x0800,
+  RV32C = 0x1000,
+  RV32Zicsr = 0x2000,
+  RV32Zifincei = 0x4000,
 };
 
 typedef struct Section{
@@ -55,7 +63,5 @@ typedef struct CompContext{
 
 }CompContext;
 
-Section*addSection(CompContext*ctx,char*name,uint32_t type,uint32_t flags,
-    uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign);
 void comp(char*inputfilename,char*outputfilename);
 

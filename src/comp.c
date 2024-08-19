@@ -7,14 +7,14 @@
 #include"data.h"
 
 Section*addSection(CompContext*ctx,char*name,uint32_t type,uint32_t flags,
-    uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign){
+    uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign, enum AsmMode mode){
   Section*sec = malloc(sizeof(Section));
   sec->name = name;
   sec->index = 0;
   sec->size = 0;
   sec->buff = NULL;
   sec->next = NULL;
-  sec->mode = 0;	// TODO
+  sec->mode = mode;
   sec->sectionIndex = ctx->shnum;
   ctx->shnum++;
   sec->rela = NULL;
@@ -70,9 +70,9 @@ void compPass(CompContext*ctx){
 
     if(tokenIdentComp(".text",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
-	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096);
+	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,0x7F04);
 	ctx->section->rela = addSection(ctx,".rela.text",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
       }
       ctx->token=ctx->token->next;
       continue;
@@ -80,9 +80,9 @@ void compPass(CompContext*ctx){
 
     if(tokenIdentComp(".data",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
-	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096);
+	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0005);
 	ctx->section->rela = addSection(ctx,".rela.data",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
       }
       ctx->token = ctx->token->next;
       continue;
@@ -90,9 +90,9 @@ void compPass(CompContext*ctx){
 
     if(tokenIdentComp(".rodata",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
-	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096);
+	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096,0x0005);
 	ctx->section->rela = addSection(ctx,".rela.rodata",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
       }
       ctx->token = ctx->token->next;
       continue;
@@ -100,30 +100,52 @@ void compPass(CompContext*ctx){
 
     if(tokenIdentComp(".bss",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
-	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096);
+	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0006);
 	ctx->section->rela = addSection(ctx,".rela.bss",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
       }
       ctx->token = ctx->token->next;
       continue;
     }
 
+    if(tokenIdentComp(".section",ctx->token)){
+      compError("directive .section not implemented yet",ctx->token);
+      //TODO Implement
+    }
 
-    if(ctx->token->type == Identifier
-	&& ctx->token->next && ctx->token->next->type == Doubledot){
-      // Symbol
- 	if(ctx->pass == INDEX){
-	  ctx->symtab->size += sizeof(Elf32_Sym);
-	}else if(ctx->pass == COMP){
-//	  Elf32_Sym*sym =(Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
-//	  sym->st_name = ctx->strtab->index;
-//	  sym->st_value = ctx->section->index;
-//	  sym->st_size = 0;
-//	  sym->st_info = 0;
-	  ctx->symtab->index += sizeof(Elf32_Sym);
+    // Guard against Assembling while no section is selected
+    if(!ctx->section)
+      compError("No Section selected to assemble into",ctx->token);
+
+    // Symbols
+    if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
+      if(! (ctx->section->mode & SYM))
+	compError("Symbol defenition not allowed in this section",ctx->token);
+      if(ctx->pass == INDEX){
+	ctx->symtab->size += sizeof(Elf32_Sym);
+	ctx->strtab->size += ctx->token->buffTop - ctx->token->buff + 1;
+	ctx->symtab->shdr.sh_info++;
+      }
+      else{
+	// Insert Symbol Entry
+	Elf32_Sym*sym =(Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
+	sym->st_name = ctx->strtab->index;
+	sym->st_value = ctx->section->index;
+	sym->st_size = 0;
+	sym->st_info = STT_NOTYPE; // TODO Implement STT Types
+	sym->st_other = STV_DEFAULT; // TODO Implement STV Types
+	sym->st_shndx = ctx->section->sectionIndex;
+	ctx->symtab->index += sizeof(Elf32_Sym);
+	// Insert Name into Strtab
+	for(char*cp = ctx->token->buff;cp<ctx->token->buffTop;cp++){
+	  ctx->strtab->buff[ctx->strtab->index] = *cp;
+	  ctx->strtab->index++;
 	}
-	ctx->token = ctx->token->next->next;
-	continue;
+	ctx->strtab->buff[ctx->strtab->index] = '\0';
+	ctx->strtab->index++;
+      }
+      ctx->token = ctx->token->next->next;
+      continue;
     }
 
     compError("Unexpected Token in Main Switch",ctx->token);
@@ -141,10 +163,10 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->sectionHead = 0;
   ctx->sectionTail = 0;
   ctx->size_shstrtab = 0;
-  addSection(ctx,"",0,0,0,0,0,0);
-  ctx->shstrtab = addSection(ctx,".shstrtab",SHT_STRTAB,0,0,0,0,0);
-  ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0);
-  ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0);
+  addSection(ctx,"",0,0,0,0,0,0,0);
+  ctx->shstrtab = addSection(ctx,".shstrtab",SHT_STRTAB,0,0,0,0,0,0);
+  ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0,0);
+  ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0,0);
 
 
   // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
