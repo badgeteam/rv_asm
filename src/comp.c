@@ -148,6 +148,12 @@ void compPass(CompContext*ctx){
       continue;
     }
 
+
+    // Data
+    if(ctx->section->mode & DATA)
+      if(compData(ctx))
+	continue;
+
     compError("Unexpected Token in Main Switch",ctx->token);
   }
 }
