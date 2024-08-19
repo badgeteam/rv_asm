@@ -56,6 +56,14 @@ void setSection(CompContext*ctx,uint32_t type,uint32_t flags){
   }
 }
 
+//Section*createSection(char*name,){
+//  Section*sec = malloc(sizeof(Section));
+//  sec->index = 0;
+//  sec->size = 0;
+//  sec->buff = NULL;
+  
+  
+//}
 
 void initSections(CompContext*ctx){
   ctx->shnum = 5;

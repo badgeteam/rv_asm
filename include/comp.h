@@ -5,6 +5,7 @@
 #include<stdbool.h>
 
 #include"token.h"
+#include"elf.h"
 //#include"section.h"
 
 enum Pass{
@@ -25,6 +26,7 @@ typedef struct Section{
   size_t sectionIndex;
   size_t size;
   size_t type,flags,addr,offset,link,entsize,addralign;
+  Elf32_Shdr shdr;
   struct Section*next;
 
 

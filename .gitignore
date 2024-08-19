@@ -1,2 +1,4 @@
-./rv_asm
-objs/*
+.cache/
+build/
+notes
+rvasm
