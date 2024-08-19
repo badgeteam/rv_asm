@@ -45,18 +45,7 @@ void writeEhdr(size_t shnum, size_t shstrndx, FILE*fp){
 
 
 void writeShdr(Section*sec,FILE*fp){
-  Elf32_Shdr*shdr = malloc(sizeof(Elf32_Shdr));
-  shdr->sh_name = sec->name_offset;
-  shdr->sh_type = sec->type;
-  shdr->sh_flags = sec->flags;
-  shdr->sh_addr = sec->addr;
-  shdr->sh_offset = sec->offset;
-  shdr->sh_size = sec->index;
-  shdr->sh_info = 0;
-  shdr->sh_link = sec->link;
-  shdr->sh_addralign = sec->addralign;
-  shdr->sh_entsize = sec->entsize;
-  fwrite(shdr,sizeof(Elf32_Shdr),1,fp);
+
 }
 
 
@@ -69,7 +58,7 @@ void export_elf(CompContext*ctx,char*outputfilename){
   }
    writeEhdr(ctx->shnum,ctx->shstrtab->sectionIndex,fp);
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next)
-    writeShdr(sec,fp);
+    fwrite(&(sec->shdr),sizeof(Elf32_Shdr),1,fp);
 
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next)
     fwrite(sec->buff,sec->index,1,fp);

@@ -1,124 +1,57 @@
 
 #include<string.h>
-#include<elf.h>
 
 #include"comp.h"
 #include"util.h"
 #include"export.h"
 #include"data.h"
-/* This Function sets the current section to assemble into.
- * If the section does not exist it gets created.
- */
-void setSection(CompContext*ctx,uint32_t type,uint32_t flags){
-  if(ctx->pass == SHSTRTAB){
-    ctx->shstrtab->size += ctx->token->buffTop - ctx->token->buff + 1;
-    return;
-  }
 
-  Section*sec = ctx->shstrtab;
-  // Try to select existing section
-  while(sec){
-    if(tokenIdentComp((char*)(ctx->shstrtab->buff + sec->name_offset), ctx->token)){
-      ctx->section = sec;
-      return;
-    }
-    sec=sec->next;
-  }
-  // Create New Section
-  if(ctx->pass == INDEX){
-    // Allocate Section
-    sec = malloc(sizeof(Section));
-    sec->index=0;
-    sec->size=0;
-    sec->type = type;
-    sec->flags = flags;
-    sec->buff = NULL;
-// sec->addr
-// sec->offset Set after buffer allocation in pass Comp
-// sec->link
-// sec->entsize
-    sec->next = NULL;
-
-    ctx->shnum++;
-    sec->sectionIndex = ctx->shnum;
-
+Section*addSection(CompContext*ctx,char*name,uint32_t type,uint32_t flags,
+    uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign){
+  Section*sec = malloc(sizeof(Section));
+  sec->name = name;
+  sec->index = 0;
+  sec->size = 0;
+  sec->buff = NULL;
+  sec->next = NULL;
+  sec->mode = 0;	// TODO
+  sec->sectionIndex = ctx->shnum;
+  ctx->shnum++;
+  sec->rela = NULL;
+  sec->shdr.sh_type = type;
+  sec->shdr.sh_flags = flags;
+  sec->shdr.sh_link = link;
+  sec->shdr.sh_info = info;
+  sec->shdr.sh_entsize = entsize;
+  sec->shdr.sh_addralign = addralign;
+  sec->shdr.sh_addr = 0;
+  // Set Later
+  sec->shdr.sh_name = 0;
+  sec->shdr.sh_offset = 0;
+  sec->shdr.sh_size = 0;
+  // Insert into List
+  if(ctx->sectionTail){
     ctx->sectionTail->next = sec;
-    ctx->sectionTail = sec;
-    ctx->section = sec;
-
-    // Write Name to shstrtab
-    sec->name_offset = ctx->shstrtab->index;
-    memcpy(ctx->shstrtab->buff + ctx->shstrtab->index, ctx->token->buff, ctx->token->buffTop - ctx->token->buff);
-    ctx->shstrtab->index += ctx->token->buffTop - ctx->token->buff;
-    ctx->shstrtab->buff[ctx->shstrtab->index] = '\0';
-    ctx->shstrtab->index++;
-
+  }else{
+    ctx->sectionHead = sec;
   }
+  ctx->sectionTail = sec;
+  // Shstrtab Buffsize
+  while(*name!='\0'){
+    ctx->size_shstrtab++;
+    name++;
+  }
+  ctx->size_shstrtab++;
+
+  return sec;
 }
 
-//Section*createSection(char*name,){
-//  Section*sec = malloc(sizeof(Section));
-//  sec->index = 0;
-//  sec->size = 0;
-//  sec->buff = NULL;
-  
-  
-//}
 
-void initSections(CompContext*ctx){
-  ctx->shnum = 5;
-  ctx->sectionHead = calloc(sizeof(Section),1);
-  Section*shstrtab = malloc(sizeof(Section));
-  Section*strtab = malloc(sizeof(Section));
-  Section*symtab = malloc(sizeof(Section));
-  Section*rela = malloc(sizeof(Section));
-  // Link Sections
-  ctx->shstrtab = shstrtab;
-  ctx->strtab = strtab;
-  ctx->symtab = symtab;
-  ctx->rela = rela;
-
-  ctx->sectionHead->next = ctx->shstrtab;
-  ctx->shstrtab->next = strtab;
-  ctx->strtab->next = symtab;
-  ctx->symtab->next = rela;
-  ctx->rela->next = NULL;
-  ctx->sectionTail = rela;
-  // Init shtrtab
-  shstrtab->size = 33;
-  shstrtab->index = 0;
-  shstrtab->sectionIndex = 1;
-  shstrtab->buff = NULL;
-  shstrtab->type = SHT_STRTAB;
-  shstrtab->name_offset = 1;
-
-  strtab->name_offset = 11;
-  strtab->index = 0;
-  strtab->size = 0;
-  strtab->buff = NULL;
-  strtab->type = SHT_STRTAB;
-  strtab->sectionIndex = 2;
-
-  symtab->name_offset = 19;
-  symtab->index = 0;
-  symtab->size = 0;
-  symtab->buff = NULL;
-  symtab->type = SHT_SYMTAB;
-  symtab->sectionIndex = 3;
-  symtab->link = 2;
-
-  rela->name_offset = 27;
-  rela->index = 0;
-  rela->size = 0;
-  rela->buff = NULL;
-  rela->type = SHT_RELA;
-  rela->sectionIndex = 4;
-  rela->link = 0;
-
-}
-
-bool compBss(CompContext*ctx){
-  return false;
+Section*getSectionByIdentifier(CompContext*ctx){
+  for(Section*sec = ctx->sectionHead;sec;sec=sec->next)
+    if(tokenIdentComp(sec->name,ctx->token))
+      return sec;
+  return NULL;
 }
 
 
@@ -136,37 +69,48 @@ void compPass(CompContext*ctx){
     // Sections
 
     if(tokenIdentComp(".text",ctx->token)){
-      setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR);
+      if(!(ctx->section = getSectionByIdentifier(ctx))){
+	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096);
+	ctx->section->rela = addSection(ctx,".rela.text",SHT_RELA,0,
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+      }
       ctx->token=ctx->token->next;
       continue;
     }
 
     if(tokenIdentComp(".data",ctx->token)){
-      setSection(ctx,SHT_PROGBITS,SHF_ALLOC|SHF_WRITE);
+      if(!(ctx->section = getSectionByIdentifier(ctx))){
+	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096);
+	ctx->section->rela = addSection(ctx,".rela.data",SHT_RELA,0,
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+      }
       ctx->token = ctx->token->next;
       continue;
     }
 
     if(tokenIdentComp(".rodata",ctx->token)){
-      setSection(ctx,SHT_PROGBITS,SHF_ALLOC);
+      if(!(ctx->section = getSectionByIdentifier(ctx))){
+	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096);
+	ctx->section->rela = addSection(ctx,".rela.rodata",SHT_RELA,0,
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+      }
       ctx->token = ctx->token->next;
       continue;
     }
 
     if(tokenIdentComp(".bss",ctx->token)){
-      setSection(ctx,SHT_NOBITS,SHF_ALLOC|SHF_WRITE);
+      if(!(ctx->section = getSectionByIdentifier(ctx))){
+	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096);
+	ctx->section->rela = addSection(ctx,".rela.bss",SHT_RELA,0,
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0);
+      }
       ctx->token = ctx->token->next;
       continue;
     }
 
-    if(ctx->pass == SHSTRTAB){
-      while(ctx->token && ctx->token->type != Newline)
-	ctx->token = ctx->token->next;
-      continue;
-    }
 
-
-    if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
+    if(ctx->token->type == Identifier
+	&& ctx->token->next && ctx->token->next->type == Doubledot){
       // Symbol
  	if(ctx->pass == INDEX){
 	  ctx->symtab->size += sizeof(Elf32_Sym);
@@ -182,36 +126,6 @@ void compPass(CompContext*ctx){
 	continue;
     }
 
-
-
-
-    if(ctx->section){
-      if(ctx->section->type == SHT_PROGBITS){
-	if(ctx->section->flags == (SHF_ALLOC|SHF_EXECINSTR)){
-	  // text
-	}
-	
-	if(ctx->section->flags == (SHF_ALLOC|SHF_WRITE)){
-	  // data
-	  if(compData(ctx))
-	    continue;
-	}
-
-	if(ctx->section->flags == SHF_ALLOC){
-	  // rodata
-	  if(compData(ctx))
-	    continue;
-	}
-
-      }
-      if(ctx->section->type == SHT_NOBITS)
-	if(ctx->section->flags == (SHF_ALLOC|SHF_WRITE)){
-	  // bss
-	  if(compBss(ctx))
-	    continue;
-	}
-    }
-
     compError("Unexpected Token in Main Switch",ctx->token);
   }
 }
@@ -222,46 +136,62 @@ void comp(char*inputfilename,char*outputfilename){
   CompContext*ctx = malloc(sizeof(CompContext));
   // Tokenize File
   ctx->tokenHead = tokenizeFile(inputfilename);
+  // Create Unique Sections
+  ctx->shnum = 0;
+  ctx->sectionHead = 0;
+  ctx->sectionTail = 0;
+  ctx->size_shstrtab = 0;
+  addSection(ctx,"",0,0,0,0,0,0);
+  ctx->shstrtab = addSection(ctx,".shstrtab",SHT_STRTAB,0,0,0,0,0);
+  ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0);
+  ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0);
 
-  // Init Sections
-  initSections(ctx);
-
-  // Index Sections Pass
-  ctx->pass = SHSTRTAB;
-  compPass(ctx);
-
-  // Allocate shstrtab Buffer and insert its own name
-  ctx->shstrtab->buff = malloc(ctx->shstrtab->size);
-  memcpy(ctx->shstrtab->buff,"\0.shstrtab\0.strtab\0.symtab\0.rela\0",33);
-  ctx->shstrtab->index += 33;
 
   // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
   ctx->pass = INDEX;
   compPass(ctx);
 
-  // Allocate remaining section Buffers 
-  for(Section*sec = ctx->sectionHead->next;sec;sec=sec->next){
-    if(!sec->buff){
+  // Shstrtab Size
+  ctx->shstrtab->size += ctx->size_shstrtab;
+
+  // Allocate section Buffers 
+  for(Section*sec = ctx->sectionHead;sec;sec=sec->next){
+    if(sec->size != 0){
       sec->buff = malloc(sec->size);
     }
+  }
+
+  // Shstrtab Content
+  for(Section*sec = ctx->sectionHead;sec;sec=sec->next){
+    sec->shdr.sh_name = ctx->shstrtab->index;
+    for(char*cp = sec->name;*cp!='\0';cp++){
+      ctx->shstrtab->buff[ctx->shstrtab->index] = *cp;
+      ctx->shstrtab->index++;
+    }
+    ctx->shstrtab->buff[ctx->shstrtab->index] = '\0';
+    ctx->shstrtab->index++;
   }
 
   // Comp Pass
   ctx->pass = COMP;
   compPass(ctx);
 
-  // Set Section Offset
-  ctx->sectionHead->next->offset = sizeof(Elf32_Ehdr) + sizeof(Elf32_Shdr) * ctx->shnum;
+  // Set Section Offset, Size
+  for(Section*sec = ctx->sectionHead->next;sec;sec=sec->next)
+    sec->shdr.sh_size = sec->index;
+
+  ctx->sectionHead->next->shdr.sh_offset = sizeof(Elf32_Ehdr) + sizeof(Elf32_Shdr) * ctx->shnum;
   for(Section*sec = ctx->sectionHead->next;sec->next;sec=sec->next){
-    sec->next->offset = sec->offset + sec->index;
+    sec->next->shdr.sh_offset = sec->shdr.sh_offset + sec->index;
   }
 
   // Print Sections
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next)    
-    printf("Section %s\t size=%ld\t offset=%ld\n",
-	ctx->shstrtab->buff+sec->name_offset,
+    printf("Section %s\t name_offset = %d\tsize=%d\t offset=%d\n",
+	sec->name,
+	sec->shdr.sh_name,
 	sec->size,
-	sec->offset);
+	sec->shdr.sh_offset);
 
   // Export
   export_elf(ctx,outputfilename);
