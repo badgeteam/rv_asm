@@ -79,29 +79,29 @@ bool compData(CompContext*ctx){
     return true;
   }
 
-//  if(tokenIdentComp(".byte",ctx->token)){
-//    if(!ctx->token->next)
-//      compError("Unexpecdet EOF",ctx->token);
-//    ctx->token = ctx->token->next;
-//    while(ctx->token && ctx->token->type & Number | Char){
-//      if(ctx->pass == INDEX)
-//	ctx->section->size ++;
-//      else if(ctx->pass == COMP){
-//	if(ctx->token->type == Number){
-//	  ctx->section->buff[ctx->section->index] = (uint8_t)parseUImm(ctx->token,8);
-//	}else if(ctx->token->type == Char){
-//	  ctx->section->buff[ctx->section->index] = (uint8_t)parseChar(ctx->token->buff+1);
-//	}
-//	ctx->section->index++;
- //     }
-//      ctx->token = ctx->token->next;
-//      if(!ctx->token)
-//	return true;
-//      if(! (ctx->token->type & Colon||Newline) )
-//	compError("Colon or Newline expected after byte in .byte",ctx->token);
-//      ctx->token = ctx->token->next;
-//    }
-//  }
+  if(tokenIdentComp(".byte",ctx->token)){
+    if(!ctx->token->next)
+      compError("Unexpecdet EOF",ctx->token);
+    ctx->token = ctx->token->next;
+    while(ctx->token && ctx->token->type & Number | Char){
+      if(ctx->pass == INDEX)
+	ctx->section->size ++;
+      else if(ctx->pass == COMP){
+	if(ctx->token->type == Number){
+	  ctx->section->buff[ctx->section->index] = (uint8_t)parseUImm(ctx->token,8);
+	}else if(ctx->token->type == Char){
+	  ctx->section->buff[ctx->section->index] = (uint8_t)parseChar(ctx->token->buff+1);
+	}
+	ctx->section->index++;
+     }
+      ctx->token = ctx->token->next;
+      if(!ctx->token)
+	return true;
+      if(! (ctx->token->type & Colon||Newline) )
+	compError("Colon or Newline expected after byte in .byte",ctx->token);
+      ctx->token = ctx->token->next;
+    }
+  }
 
   return false;
 }

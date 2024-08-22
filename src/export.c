@@ -44,10 +44,6 @@ void writeEhdr(size_t shnum, size_t shstrndx, FILE*fp){
 
 
 
-void writeShdr(Section*sec,FILE*fp){
-
-}
-
 
 void export_elf(CompContext*ctx,char*outputfilename){
 
@@ -61,7 +57,8 @@ void export_elf(CompContext*ctx,char*outputfilename){
     fwrite(&(sec->shdr),sizeof(Elf32_Shdr),1,fp);
 
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next)
-    fwrite(sec->buff,sec->index,1,fp);
+    if(sec->buff)
+      fwrite(sec->buff,sec->index,1,fp);
 
   fclose(fp);
 }

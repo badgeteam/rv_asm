@@ -5,6 +5,8 @@
 #include"util.h"
 #include"export.h"
 #include"data.h"
+#include"bss.h"
+
 
 Section*addSection(CompContext*ctx,char*name,uint32_t type,uint32_t flags,
     uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign, enum AsmMode mode){
@@ -154,6 +156,10 @@ void compPass(CompContext*ctx){
       if(compData(ctx))
 	continue;
 
+    if(ctx->section->mode & BSS)
+      if(compBSS(ctx))
+	continue;
+
     compError("Unexpected Token in Main Switch",ctx->token);
   }
 }
@@ -210,7 +216,7 @@ void comp(char*inputfilename,char*outputfilename){
 
   ctx->sectionHead->next->shdr.sh_offset = sizeof(Elf32_Ehdr) + sizeof(Elf32_Shdr) * ctx->shnum;
   for(Section*sec = ctx->sectionHead->next;sec->next;sec=sec->next){
-    sec->next->shdr.sh_offset = sec->shdr.sh_offset + sec->index;
+    sec->next->shdr.sh_offset = sec->shdr.sh_offset + (sec->buff ? sec->index : 0);
   }
 
   // Print Sections

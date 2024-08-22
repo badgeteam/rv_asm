@@ -1,0 +1,6 @@
+
+.bss
+sym0:
+.space 1024
+sym1:
+.space 1024
