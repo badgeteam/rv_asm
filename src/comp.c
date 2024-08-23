@@ -1,5 +1,6 @@
 
 #include<string.h>
+#include<elf.h>
 
 #include"comp.h"
 #include"util.h"
@@ -56,6 +57,60 @@ Section*getSectionByIdentifier(CompContext*ctx){
   return NULL;
 }
 
+void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, int32_t addend){
+// TODO allocate RELA Section only when needed  
+//  if(!ctx->section->rela){}
+  if(ctx->pass == INDEX){
+    ctx->section->rela->size += sizeof(Elf32_Rela);
+  }
+  else{
+printf("Symbol Index = %d\n",sym);
+    Elf32_Rela*rela = (Elf32_Rela*)(ctx->section->rela->buff + ctx->section->rela->index);
+    rela->r_offset = offset;
+    rela->r_info = ELF32_R_INFO(sym,type);
+    rela->r_addend = addend;
+    ctx->section->rela->index += sizeof(Elf32_Rela);
+  }
+}
+
+void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t size,
+    uint32_t info, uint32_t other, uint32_t shndx){
+  if(ctx->pass == INDEX){
+    ctx->symtab->size += sizeof(Elf32_Sym);
+    ctx->strtab->size += nameToken->buffTop - nameToken->buff + 1;
+    ctx->symtab->shdr.sh_info++;
+  }
+  else{
+    Elf32_Sym*sym = (Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
+    sym->st_name = ctx->strtab->index;
+    sym->st_value = value;
+    sym->st_size = size;
+    sym->st_info = info;
+    sym->st_other = other;
+    sym->st_shndx = shndx;
+    ctx->symtab->index += sizeof(Elf32_Sym);
+    // Insert Name into Strtab
+    for(char*cp = nameToken->buff; cp<nameToken->buffTop; cp++){
+      ctx->strtab->buff[ctx->strtab->index] = *cp;
+      ctx->strtab->index++;
+    }
+    ctx->strtab->buff[ctx->strtab->index] = '\0';
+    ctx->strtab->index++;
+  }
+}
+
+uint32_t getSymbolIndex(CompContext*ctx,struct Token*nameToken){
+  if(ctx->pass == INDEX)return 0;
+  Elf32_Sym*sym;
+  for(uint32_t i = 0; i<ctx->symtab->shdr.sh_info; i++){
+    sym = ((Elf32_Sym*)(ctx->symtab->buff + sizeof(Elf32_Sym)*i));
+    if(ctx->strtab->index > sym->st_name 
+	&& tokenIdentComp((char*)(ctx->strtab->buff+sym->st_name),nameToken))
+	return i;
+  }
+  compError("Symbol not found",nameToken);
+  return 0;
+}
 
 void compPass(CompContext*ctx){
   ctx->token = ctx->tokenHead;

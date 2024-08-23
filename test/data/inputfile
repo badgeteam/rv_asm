@@ -1,9 +1,0 @@
-
-.data
-
-hello_world:
-.string "Hello, World!\n"
-
-hello_ascii:
-.ascii "Hello, World"
-

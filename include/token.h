@@ -24,6 +24,7 @@ enum TokType{
   Number	= 0x00000040,
   Identifier	= 0x00000080,
   Newline	= 0x00000100,
+  Percent	= 0x00000200,
 };
 
 struct Token{

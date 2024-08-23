@@ -56,5 +56,9 @@ typedef struct CompContext{
 
 }CompContext;
 
+void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, int32_t addend);
+
+uint32_t getSymbolIndex(CompContext*ctx,struct Token*nameToken);
+
 void comp(char*inputfilename,char*outputfilename);
 

@@ -92,17 +92,7 @@ struct Token*nextTokenEnforceColon(struct Token*token){
   return token;
 }
 
-void encodeR(CompContext*ctx,uint32_t enc){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
-  enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
-  enc += parseIntReg(ctx->token) << 15;
-  ctx->token = nextTokenEnforceColon(ctx->token);
-  enc += parseIntReg(ctx->token) << 20;
-  ctx->token = ctx->token->next;
-
+void insert4ByteCheckLineEnd(CompContext*ctx, uint32_t enc){
   if(ctx->pass == INDEX){
     ctx->section->size += 4;
   }
@@ -117,8 +107,84 @@ void encodeR(CompContext*ctx,uint32_t enc){
     compError("Line Break or EOF expected after RiscV Instruction",ctx->token);
 }
 
+/* This Function parses the nameToken of a specific relocation.
+ * Pattern: %type(name)
+ */
+struct Token*parseRelocationPattern(CompContext*ctx,uint32_t type){
+  struct Token*backupToken = ctx->token;
+  if(ctx->token->type != Percent)
+    goto fail;
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+  switch(type){
+    case R_RISCV_HI20:
+      if(!tokenIdentComp("hi",ctx->token))
+	goto fail;
+      break;
+    default:
+      goto fail;
+  }
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+  if(ctx->token->type != BracketIn)
+    goto fail;
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+  if(ctx->token->type != Identifier)
+    goto fail;
+  struct Token*nameToken = ctx->token;
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+  if(ctx->token->type != BracketOut)
+    goto fail;
+  ctx->token = ctx->token->next;
+  return nameToken;
+fail:
+  ctx->token = backupToken;
+  return NULL;
+}
+
+void encodeLui(CompContext*ctx){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  uint32_t enc = 0x37;
+  enc += parseIntReg(ctx->token) << 7;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  if(ctx->token->type == Number){
+    enc += (parseInt(ctx->token) >> 12) << 12;
+    ctx->token = ctx->token->next;
+    insert4ByteCheckLineEnd(ctx,enc);
+    return;
+  }
+  struct Token*nameToken = parseRelocationPattern(ctx,R_RISCV_HI20);
+  if(nameToken){
+    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,nameToken),R_RISCV_HI20,0);
+    insert4ByteCheckLineEnd(ctx,enc);
+    return;
+  }
+  compError("Number or Relocation expected",ctx->token);
+}
+
+void encodeR(CompContext*ctx,uint32_t enc){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  enc += parseIntReg(ctx->token) << 7;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseIntReg(ctx->token) << 15;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseIntReg(ctx->token) << 20;
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
+}
+
 bool compRV32I(CompContext*ctx){
-  if(tokenIdentCompCI("lui"  ,ctx->token)){return false;}
+  if(tokenIdentCompCI("lui"  ,ctx->token)){encodeLui(ctx);return true;}
   if(tokenIdentCompCI("auipc",ctx->token)){return false;}
   if(tokenIdentCompCI("jal"  ,ctx->token)){return false;}
   if(tokenIdentCompCI("jalr" ,ctx->token)){return false;}

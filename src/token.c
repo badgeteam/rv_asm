@@ -80,6 +80,10 @@ struct Token*tokenizeFile(char*filename){
 	      index++;
 	      type = BracketOut;
 	      break;
+      case'%':
+	      index++;
+	      type = Percent;
+	      break;
       // Character
       case'\'':
 	      index++;

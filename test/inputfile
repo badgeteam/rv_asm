@@ -1,0 +1,10 @@
+
+
+.text
+
+symbol0:
+symbol1:
+
+  mul a0, t1, t2
+  lui a0, %hi(symbol1)
+
