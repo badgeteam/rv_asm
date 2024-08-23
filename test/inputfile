@@ -7,4 +7,5 @@ symbol1:
 
   mul a0, t1, t2
   lui a0, %hi(symbol1)
+  auipc a0, %pcrel_hi(symbol0)
 

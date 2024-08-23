@@ -122,6 +122,10 @@ struct Token*parseRelocationPattern(CompContext*ctx,uint32_t type){
       if(!tokenIdentComp("hi",ctx->token))
 	goto fail;
       break;
+    case R_RISCV_PCREL_HI20:
+      if(!tokenIdentComp("pcrel_hi",ctx->token))
+	goto fail;
+      break;
     default:
       goto fail;
   }
@@ -170,6 +174,29 @@ void encodeLui(CompContext*ctx){
   compError("Number or Relocation expected",ctx->token);
 }
 
+void encodeAuipc(CompContext*ctx){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  uint32_t enc = 0x37;
+  enc += parseIntReg(ctx->token) << 7;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  if(ctx->token->type == Number){
+    enc += (parseInt(ctx->token) >> 12) << 12;
+    ctx->token = ctx->token->next;
+    insert4ByteCheckLineEnd(ctx,enc);
+    return;
+  }
+  struct Token*nameToken = parseRelocationPattern(ctx,R_RISCV_PCREL_HI20);
+  if(nameToken){
+    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,nameToken),R_RISCV_PCREL_HI20,0);
+    insert4ByteCheckLineEnd(ctx,enc);
+    return;
+  }
+  compError("Number or Relocation expected",ctx->token);
+}
+
+
 void encodeR(CompContext*ctx,uint32_t enc){
   if(!ctx->token->next)
     compError("Unexpected EOF",ctx->token);
@@ -185,7 +212,7 @@ void encodeR(CompContext*ctx,uint32_t enc){
 
 bool compRV32I(CompContext*ctx){
   if(tokenIdentCompCI("lui"  ,ctx->token)){encodeLui(ctx);return true;}
-  if(tokenIdentCompCI("auipc",ctx->token)){return false;}
+  if(tokenIdentCompCI("auipc",ctx->token)){encodeAuipc(ctx);return true;}
   if(tokenIdentCompCI("jal"  ,ctx->token)){return false;}
   if(tokenIdentCompCI("jalr" ,ctx->token)){return false;}
   if(tokenIdentCompCI("beq"  ,ctx->token)){return false;}

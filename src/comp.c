@@ -64,7 +64,6 @@ void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, 
     ctx->section->rela->size += sizeof(Elf32_Rela);
   }
   else{
-printf("Symbol Index = %d\n",sym);
     Elf32_Rela*rela = (Elf32_Rela*)(ctx->section->rela->buff + ctx->section->rela->index);
     rela->r_offset = offset;
     rela->r_info = ELF32_R_INFO(sym,type);
@@ -73,11 +72,11 @@ printf("Symbol Index = %d\n",sym);
   }
 }
 
-void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t size,
+void addSymbol(CompContext*ctx,char*name,uint32_t namesize, uint32_t value, uint32_t size,
     uint32_t info, uint32_t other, uint32_t shndx){
   if(ctx->pass == INDEX){
     ctx->symtab->size += sizeof(Elf32_Sym);
-    ctx->strtab->size += nameToken->buffTop - nameToken->buff + 1;
+    ctx->strtab->size += namesize + 1;
     ctx->symtab->shdr.sh_info++;
   }
   else{
@@ -90,8 +89,8 @@ void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t 
     sym->st_shndx = shndx;
     ctx->symtab->index += sizeof(Elf32_Sym);
     // Insert Name into Strtab
-    for(char*cp = nameToken->buff; cp<nameToken->buffTop; cp++){
-      ctx->strtab->buff[ctx->strtab->index] = *cp;
+    for(int i = 0; i<namesize; i++){
+      ctx->strtab->buff[ctx->strtab->index] = name[i];
       ctx->strtab->index++;
     }
     ctx->strtab->buff[ctx->strtab->index] = '\0';
@@ -129,7 +128,7 @@ void compPass(CompContext*ctx){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
 	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,0x000C);
 	ctx->section->rela = addSection(ctx,".rela.text",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
       }
       ctx->token=ctx->token->next;
       continue;
@@ -139,7 +138,7 @@ void compPass(CompContext*ctx){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
 	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0005);
 	ctx->section->rela = addSection(ctx,".rela.data",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
       }
       ctx->token = ctx->token->next;
       continue;
@@ -149,7 +148,7 @@ void compPass(CompContext*ctx){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
 	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096,0x0005);
 	ctx->section->rela = addSection(ctx,".rela.rodata",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
       }
       ctx->token = ctx->token->next;
       continue;
@@ -159,7 +158,7 @@ void compPass(CompContext*ctx){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
 	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0006);
 	ctx->section->rela = addSection(ctx,".rela.bss",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
+	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
       }
       ctx->token = ctx->token->next;
       continue;
@@ -239,9 +238,9 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0,0);
   ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0,0);
 
-
   // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
   ctx->pass = INDEX;
+  addSymbol(ctx,"",0,0,0,0,0,0);
   compPass(ctx);
 
   // Shstrtab Size
@@ -267,6 +266,7 @@ void comp(char*inputfilename,char*outputfilename){
 
   // Comp Pass
   ctx->pass = COMP;
+  addSymbol(ctx,"",0,0,0,0,0,0);
   compPass(ctx);
 
   // Set Section Offset, Size
@@ -279,12 +279,12 @@ void comp(char*inputfilename,char*outputfilename){
   }
 
   // Print Sections
-  for(Section*sec = ctx->sectionHead;sec;sec=sec->next)    
-    printf("Section %s\t name_offset = %d\tsize=%d\t offset=%d\n",
-	sec->name,
-	sec->shdr.sh_name,
-	sec->size,
-	sec->shdr.sh_offset);
+//  for(Section*sec = ctx->sectionHead;sec;sec=sec->next)    
+//    printf("Section %s\t name_offset = %d\tsize=%d\t offset=%d\n",
+//	sec->name,
+//	sec->shdr.sh_name,
+//	sec->size,
+//	sec->shdr.sh_offset);
 
   // Export
   export_elf(ctx,outputfilename);
