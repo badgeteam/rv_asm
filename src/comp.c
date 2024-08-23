@@ -6,7 +6,7 @@
 #include"export.h"
 #include"data.h"
 #include"bss.h"
-
+#include"riscv.h"
 
 Section*addSection(CompContext*ctx,char*name,uint32_t type,uint32_t flags,
     uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign, enum AsmMode mode){
@@ -72,7 +72,7 @@ void compPass(CompContext*ctx){
 
     if(tokenIdentComp(".text",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx))){
-	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,0x7F04);
+	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,0x000C);
 	ctx->section->rela = addSection(ctx,".rela.text",SHT_RELA,0,
 	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,0,0,0);
       }
@@ -158,6 +158,10 @@ void compPass(CompContext*ctx){
 
     if(ctx->section->mode & BSS)
       if(compBSS(ctx))
+	continue;
+
+    if(ctx->section->mode & TEXT)
+      if(compRV(ctx))
 	continue;
 
     compError("Unexpected Token in Main Switch",ctx->token);
