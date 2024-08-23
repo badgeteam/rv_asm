@@ -178,7 +178,7 @@ void encodeAuipc(CompContext*ctx){
   if(!ctx->token->next)
     compError("Unexpected EOF",ctx->token);
   ctx->token = ctx->token->next;
-  uint32_t enc = 0x37;
+  uint32_t enc = 0x17;
   enc += parseIntReg(ctx->token) << 7;
   ctx->token = nextTokenEnforceColon(ctx->token);
   if(ctx->token->type == Number){
