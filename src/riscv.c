@@ -171,7 +171,7 @@ void encodeLui(CompContext*ctx){
     insert4ByteCheckLineEnd(ctx,enc);
     return;
   }
-  compError("Number or Relocation expected",ctx->token);
+  compError("Number or \%hi() Relocation expected",ctx->token);
 }
 
 void encodeAuipc(CompContext*ctx){
@@ -193,7 +193,7 @@ void encodeAuipc(CompContext*ctx){
     insert4ByteCheckLineEnd(ctx,enc);
     return;
   }
-  compError("Number or Relocation expected",ctx->token);
+  compError("Number or \%pcrel_hi() Relocation expected",ctx->token);
 }
 
 

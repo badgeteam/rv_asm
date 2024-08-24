@@ -73,7 +73,7 @@ void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, 
 }
 
 void addSymbol(CompContext*ctx,char*name,uint32_t namesize, uint32_t value, uint32_t size,
-    uint32_t info, uint32_t other, uint32_t shndx){
+    uint32_t type, uint32_t vis, uint32_t shndx){
   if(ctx->pass == INDEX){
     ctx->symtab->size += sizeof(Elf32_Sym);
     ctx->strtab->size += namesize + 1;
@@ -84,8 +84,8 @@ void addSymbol(CompContext*ctx,char*name,uint32_t namesize, uint32_t value, uint
     sym->st_name = ctx->strtab->index;
     sym->st_value = value;
     sym->st_size = size;
-    sym->st_info = info;
-    sym->st_other = other;
+    sym->st_info = type;
+    sym->st_other = vis;
     sym->st_shndx = shndx;
     ctx->symtab->index += sizeof(Elf32_Sym);
     // Insert Name into Strtab
@@ -177,29 +177,8 @@ void compPass(CompContext*ctx){
     if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
       if(! (ctx->section->mode & SYM))
 	compError("Symbol defenition not allowed in this section",ctx->token);
-      if(ctx->pass == INDEX){
-	ctx->symtab->size += sizeof(Elf32_Sym);
-	ctx->strtab->size += ctx->token->buffTop - ctx->token->buff + 1;
-	ctx->symtab->shdr.sh_info++;
-      }
-      else{
-	// Insert Symbol Entry
-	Elf32_Sym*sym =(Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
-	sym->st_name = ctx->strtab->index;
-	sym->st_value = ctx->section->index;
-	sym->st_size = 0;
-	sym->st_info = STT_NOTYPE; // TODO Implement STT Types
-	sym->st_other = STV_DEFAULT; // TODO Implement STV Types
-	sym->st_shndx = ctx->section->sectionIndex;
-	ctx->symtab->index += sizeof(Elf32_Sym);
-	// Insert Name into Strtab
-	for(char*cp = ctx->token->buff;cp<ctx->token->buffTop;cp++){
-	  ctx->strtab->buff[ctx->strtab->index] = *cp;
-	  ctx->strtab->index++;
-	}
-	ctx->strtab->buff[ctx->strtab->index] = '\0';
-	ctx->strtab->index++;
-      }
+      addSymbol(ctx,ctx->token->buff,ctx->token->buffTop-ctx->token->buff,
+	  ctx->section->index,0,STT_NOTYPE,STV_DEFAULT,ctx->section->sectionIndex);
       ctx->token = ctx->token->next->next;
       continue;
     }
