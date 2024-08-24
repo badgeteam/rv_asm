@@ -196,6 +196,23 @@ void encodeAuipc(CompContext*ctx){
   compError("Number or \%pcrel_hi() Relocation expected",ctx->token);
 }
 
+void encodeU(CompContext*ctx, uint32_t enc){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  enc += parseIntReg(ctx->token) << 7;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  if(ctx->token->type == Number){
+    compError("U encoding with immediate number not implemented. use symbols",ctx->token);
+  }
+  if(ctx->token->type == Identifier){
+    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,ctx->token),R_RISCV_JAL,0); 
+    ctx->token = ctx->token->next;
+    insert4ByteCheckLineEnd(ctx,enc);
+    return;
+  }
+  compError("Symbol Name expected for relocation",ctx->token);
+}
 
 void encodeR(CompContext*ctx,uint32_t enc){
   if(!ctx->token->next)
@@ -213,7 +230,7 @@ void encodeR(CompContext*ctx,uint32_t enc){
 bool compRV32I(CompContext*ctx){
   if(tokenIdentCompCI("lui"  ,ctx->token)){encodeLui(ctx);return true;}
   if(tokenIdentCompCI("auipc",ctx->token)){encodeAuipc(ctx);return true;}
-  if(tokenIdentCompCI("jal"  ,ctx->token)){return false;}
+  if(tokenIdentCompCI("jal"  ,ctx->token)){encodeU(ctx,0x6F);return true;}
   if(tokenIdentCompCI("jalr" ,ctx->token)){return false;}
   if(tokenIdentCompCI("beq"  ,ctx->token)){return false;}
   if(tokenIdentCompCI("bne"  ,ctx->token)){return false;}
