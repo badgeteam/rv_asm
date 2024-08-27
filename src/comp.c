@@ -174,45 +174,6 @@ void symbolPassPostComp(CompContext*ctx){
   }
 }
 
-//void addSymbol(CompContext*ctx,char*name,uint32_t namesize, uint32_t value, uint32_t size,
-//    uint32_t type, uint32_t vis, uint32_t shndx){
-//  if(ctx->pass == INDEX){
-//    ctx->symtab->size += sizeof(Elf32_Sym);
-//    ctx->strtab->size += namesize + 1;
-//    ctx->symtab->shdr.sh_info++;
-//  }
-//  else{
-//    Elf32_Sym*sym = (Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
-//    sym->st_name = ctx->strtab->index;
-//    sym->st_value = value;
-//    sym->st_size = size;
-//    sym->st_info = type;
-//    sym->st_other = vis;
-//    sym->st_shndx = shndx;
-//    ctx->symtab->index += sizeof(Elf32_Sym);
-    // Insert Name into Strtab
-//    for(int i = 0; i<namesize; i++){
-//      ctx->strtab->buff[ctx->strtab->index] = name[i];
-//      ctx->strtab->index++;
-//    }
-//    ctx->strtab->buff[ctx->strtab->index] = '\0';
-//    ctx->strtab->index++;
-//  }
-//}
-
-//uint32_t getSymbolIndex(CompContext*ctx,struct Token*nameToken){
-//  if(ctx->pass == INDEX)return 0;
-//  Elf32_Sym*sym;
-//  for(uint32_t i = 0; i<ctx->symtab->shdr.sh_info; i++){
-//    sym = ((Elf32_Sym*)(ctx->symtab->buff + sizeof(Elf32_Sym)*i));
-//    if(ctx->strtab->index > sym->st_name 
-//	&& tokenIdentComp((char*)(ctx->strtab->buff+sym->st_name),nameToken))
-//	return i;
-//  }
-//  compError("Symbol not found",nameToken);
-//  return 0;
-//}
-
 void compPass(CompContext*ctx){
   ctx->token = ctx->tokenHead;
   ctx->section = NULL;
