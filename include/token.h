@@ -60,6 +60,8 @@ uint32_t parseUImm(struct Token*token, uint32_t length);
 // Parses a signed Immediate Number of a specific length or throws an error
 uint32_t parseImm(struct Token*teken, uint32_t length);
 
+char*copyTokenContent(struct Token*token);
+
 // Returns the name of the token. For Debug purposes
 char*tokenTypeName(struct Token*token);
 

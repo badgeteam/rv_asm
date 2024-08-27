@@ -57,7 +57,7 @@ Section*getSectionByIdentifier(CompContext*ctx){
   return NULL;
 }
 
-void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, int32_t addend){
+void addRelaEntry(CompContext*ctx,uint32_t offset, Symbol*sym, uint32_t type, int32_t addend){
   if(!ctx->section->rela){
     uint32_t name_size_index = 5;	// sizeof(".rela")
     for(char*cp = ctx->section->name; *cp!='\0'; cp++)
@@ -95,31 +95,78 @@ void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, 
   else{
     Elf32_Rela*rela = (Elf32_Rela*)(ctx->section->rela->buff + ctx->section->rela->index);
     rela->r_offset = offset;
-    rela->r_info = ELF32_R_INFO(sym,type);
+    rela->r_info = ELF32_R_INFO(sym->index,type);
     rela->r_addend = addend;
     ctx->section->rela->index += sizeof(Elf32_Rela);
   }
 }
 
-void addSymbol(CompContext*ctx,char*name,uint32_t namesize, uint32_t value, uint32_t size,
+void initSymbolList(CompContext*ctx){
+  Symbol*sym = malloc(sizeof(Symbol));
+  sym->name = "";
+  sym->namesize = 1;
+  sym->index = 0;
+  sym->next = NULL;
+  sym->value = 0;
+  sym->size = 0;
+  sym->type = 0;
+  sym->vis = 0;
+  sym->shndx = 0;
+  ctx->symbolHead = sym;
+  ctx->symbolTail = sym;
+}
+
+Symbol*getSymbol(CompContext*ctx, struct Token*nameToken){
+  for(Symbol*sym = ctx->symbolHead; sym; sym=sym->next)
+    if(tokenIdentComp(sym->name,nameToken))
+      return sym;
+  return NULL;
+}
+
+
+void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t size,
     uint32_t type, uint32_t vis, uint32_t shndx){
-  if(ctx->pass == INDEX){
+  if(ctx->pass == COMP)
+    return;
+  if(getSymbol(ctx,nameToken))
+    compError("Symbol redefinition",nameToken);
+
+  Symbol*sym = malloc(sizeof(Symbol));
+  sym->index = ctx->symbolTail->index + 1;
+  sym->next = NULL;
+  sym->name = copyTokenContent(nameToken);
+  sym->namesize = nameToken->buffTop - nameToken->buff + 1;
+  sym->value = value;
+  sym->size = size;
+  sym->type = type;
+  sym->vis = vis;
+  sym->shndx = shndx;
+  ctx->symbolTail->next = sym;
+  ctx->symbolTail = sym;
+}
+
+void symbolPassPostIndex(CompContext*ctx){
+  for(Symbol*sym = ctx->symbolHead; sym; sym = sym->next){
     ctx->symtab->size += sizeof(Elf32_Sym);
-    ctx->strtab->size += namesize + 1;
     ctx->symtab->shdr.sh_info++;
+    ctx->strtab->size += sym->namesize;
   }
-  else{
-    Elf32_Sym*sym = (Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
-    sym->st_name = ctx->strtab->index;
-    sym->st_value = value;
-    sym->st_size = size;
-    sym->st_info = type;
-    sym->st_other = vis;
-    sym->st_shndx = shndx;
+}
+
+void symbolPassPostComp(CompContext*ctx){
+  Elf32_Sym*elfsym;
+  for(Symbol*sym = ctx->symbolHead; sym; sym = sym->next){
+    elfsym = (Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
+    elfsym->st_name = ctx->strtab->index;
+    elfsym->st_value = sym->value;
+    elfsym->st_size = sym->size;
+    elfsym->st_info = sym->type;
+    elfsym->st_other = sym->vis;
+    elfsym->st_shndx = sym->shndx;
     ctx->symtab->index += sizeof(Elf32_Sym);
     // Insert Name into Strtab
-    for(int i = 0; i<namesize; i++){
-      ctx->strtab->buff[ctx->strtab->index] = name[i];
+    for(int i = 0;i<sym->namesize;i++){
+      ctx->strtab->buff[ctx->strtab->index] = sym->name[i];
       ctx->strtab->index++;
     }
     ctx->strtab->buff[ctx->strtab->index] = '\0';
@@ -127,18 +174,44 @@ void addSymbol(CompContext*ctx,char*name,uint32_t namesize, uint32_t value, uint
   }
 }
 
-uint32_t getSymbolIndex(CompContext*ctx,struct Token*nameToken){
-  if(ctx->pass == INDEX)return 0;
-  Elf32_Sym*sym;
-  for(uint32_t i = 0; i<ctx->symtab->shdr.sh_info; i++){
-    sym = ((Elf32_Sym*)(ctx->symtab->buff + sizeof(Elf32_Sym)*i));
-    if(ctx->strtab->index > sym->st_name 
-	&& tokenIdentComp((char*)(ctx->strtab->buff+sym->st_name),nameToken))
-	return i;
-  }
-  compError("Symbol not found",nameToken);
-  return 0;
-}
+//void addSymbol(CompContext*ctx,char*name,uint32_t namesize, uint32_t value, uint32_t size,
+//    uint32_t type, uint32_t vis, uint32_t shndx){
+//  if(ctx->pass == INDEX){
+//    ctx->symtab->size += sizeof(Elf32_Sym);
+//    ctx->strtab->size += namesize + 1;
+//    ctx->symtab->shdr.sh_info++;
+//  }
+//  else{
+//    Elf32_Sym*sym = (Elf32_Sym*)(ctx->symtab->buff + ctx->symtab->index);
+//    sym->st_name = ctx->strtab->index;
+//    sym->st_value = value;
+//    sym->st_size = size;
+//    sym->st_info = type;
+//    sym->st_other = vis;
+//    sym->st_shndx = shndx;
+//    ctx->symtab->index += sizeof(Elf32_Sym);
+    // Insert Name into Strtab
+//    for(int i = 0; i<namesize; i++){
+//      ctx->strtab->buff[ctx->strtab->index] = name[i];
+//      ctx->strtab->index++;
+//    }
+//    ctx->strtab->buff[ctx->strtab->index] = '\0';
+//    ctx->strtab->index++;
+//  }
+//}
+
+//uint32_t getSymbolIndex(CompContext*ctx,struct Token*nameToken){
+//  if(ctx->pass == INDEX)return 0;
+//  Elf32_Sym*sym;
+//  for(uint32_t i = 0; i<ctx->symtab->shdr.sh_info; i++){
+//    sym = ((Elf32_Sym*)(ctx->symtab->buff + sizeof(Elf32_Sym)*i));
+//    if(ctx->strtab->index > sym->st_name 
+//	&& tokenIdentComp((char*)(ctx->strtab->buff+sym->st_name),nameToken))
+//	return i;
+//  }
+//  compError("Symbol not found",nameToken);
+//  return 0;
+//}
 
 void compPass(CompContext*ctx){
   ctx->token = ctx->tokenHead;
@@ -194,8 +267,7 @@ void compPass(CompContext*ctx){
     if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
       if(! (ctx->section->mode & SYM))
 	compError("Symbol defenition not allowed in this section",ctx->token);
-      addSymbol(ctx,ctx->token->buff,ctx->token->buffTop-ctx->token->buff,
-	  ctx->section->index,0,STT_NOTYPE,STV_DEFAULT,ctx->section->sectionIndex);
+      addSymbol(ctx,ctx->token,ctx->section->index,0,STT_NOTYPE,STV_DEFAULT,ctx->section->sectionIndex);
       ctx->token = ctx->token->next->next;
       continue;
     }
@@ -234,10 +306,13 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0,0);
   ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0,0);
 
+  initSymbolList(ctx);
+
   // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
   ctx->pass = INDEX;
-  addSymbol(ctx,"",0,0,0,0,0,0);
   compPass(ctx);
+
+  symbolPassPostIndex(ctx);
 
   // Shstrtab Size
   ctx->shstrtab->size += ctx->size_shstrtab;
@@ -262,8 +337,9 @@ void comp(char*inputfilename,char*outputfilename){
 
   // Comp Pass
   ctx->pass = COMP;
-  addSymbol(ctx,"",0,0,0,0,0,0);
   compPass(ctx);
+
+  symbolPassPostComp(ctx);
 
   // Set Section Offset, Size
   for(Section*sec = ctx->sectionHead->next;sec;sec=sec->next)

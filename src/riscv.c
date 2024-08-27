@@ -218,7 +218,7 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   ctx->token = ctx->token->next;
 
   // Apply Relocation
-  addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,nameToken),type,addend);
+  addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,nameToken),type,addend);
   return true;
 fail:
   ctx->token = backupToken;
@@ -265,7 +265,7 @@ void encodeU(CompContext*ctx, uint32_t enc){
     compError("U encoding with immediate number not implemented. use symbols",ctx->token);
   }
   if(ctx->token->type == Identifier){
-    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,ctx->token),R_RISCV_JAL,0); 
+    addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,ctx->token),R_RISCV_JAL,0); 
     ctx->token = ctx->token->next;
     insert4ByteCheckLineEnd(ctx,enc);
     return;
@@ -282,7 +282,7 @@ void encodeB(CompContext*ctx,uint32_t enc){
   if(ctx->token->type == Number)
     compError("B Encoding with immediate number not implemented. use symbols",ctx->token);
   if(ctx->token->type == Identifier){
-    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,ctx->token),R_RISCV_BRANCH,0);
+    addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,ctx->token),R_RISCV_BRANCH,0);
     ctx->token = ctx->token->next;
     insert4ByteCheckLineEnd(ctx,enc);
     return;

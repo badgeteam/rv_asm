@@ -230,7 +230,8 @@ bool tokenIdentComp(char*str,struct Token*token){
   if(token->type != Identifier)return false;
   char c1, c2;
   for(char*tokstr = token->buff; tokstr<token->buffTop; tokstr++){
-    if(*str == '\0')return false;
+    if(*str == '\0')
+      return false;
     c1 = *str;
     c2 = *tokstr;
     if(c1!=c2)return false;
@@ -314,6 +315,17 @@ uint32_t parseImm(struct Token*token,uint32_t length){
   uint32_t pos = z>=0 ? z: -z;
   if((pos >> (length-1) != 0)) compError("Imm out of range",token);
   return z & ((1<<length)-1);
+}
+
+char*copyTokenContent(struct Token*token){
+  char*str = malloc(token->buffTop - token->buff + 1);
+  uint32_t index = 0;
+  for(char*cp = token->buff; cp<token->buffTop; cp++){
+    str[index] = *cp;
+    index++;
+  }
+  str[index] = '\0';
+  return str;
 }
 
 char*tokenTypeName(struct Token*token){

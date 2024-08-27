@@ -40,10 +40,25 @@ typedef struct Section{
 
 }Section;
 
+typedef struct Symbol{
+  char*name;
+  uint32_t namesize;
+  uint32_t index;
+  struct Symbol*next;
+
+  uint32_t value;
+  uint32_t size;
+  uint32_t type;
+  uint32_t vis;
+  uint32_t shndx;
+}Symbol;
+
 typedef struct CompContext{
   struct Token*tokenHead;
   struct Token*token;
   enum Pass pass;
+
+  Symbol*symbolHead,*symbolTail;
 
   Section*sectionHead;
   Section*sectionTail;
@@ -56,9 +71,12 @@ typedef struct CompContext{
 
 }CompContext;
 
-void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, int32_t addend);
+void addRelaEntry(CompContext*ctx,uint32_t offset, Symbol*sym, uint32_t type, int32_t addend);
 
-uint32_t getSymbolIndex(CompContext*ctx,struct Token*nameToken);
+Symbol*getSymbol(CompContext*ctx,struct Token*nameToken);
+
+void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t size, uint32_t type, uint32_t vis, uint32_t shndx);
+
 
 void comp(char*inputfilename,char*outputfilename);
 
