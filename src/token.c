@@ -138,8 +138,8 @@ struct Token*tokenizeFile(char*filename){
 		}
 	      }
       case'1'...'9':
-	      do index++;
-	      while(index<size && buff[index]>='0' && buff[index]<='9');
+	      while(index<size && buff[index]>='0' && buff[index]<='9')
+		index++;
 	      type = Number;
 	      break;
       // Identifier or file include
