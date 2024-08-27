@@ -58,8 +58,37 @@ Section*getSectionByIdentifier(CompContext*ctx){
 }
 
 void addRelaEntry(CompContext*ctx,uint32_t offset, uint32_t sym, uint32_t type, int32_t addend){
-// TODO allocate RELA Section only when needed  
-//  if(!ctx->section->rela){}
+  if(!ctx->section->rela){
+    uint32_t name_size_index = 5;	// sizeof(".rela")
+    for(char*cp = ctx->section->name; *cp!='\0'; cp++)
+      name_size_index++;
+    name_size_index++;
+    char*name = malloc(name_size_index);
+    name[0] = '.';
+    name[1] = 'r';
+    name[2] = 'e';
+    name[3] = 'l';
+    name[4] = 'a';
+    name_size_index = 5;
+    for(char*cp = ctx->section->name; *cp!='\0'; cp++){
+      name[name_size_index] = *cp;
+      name_size_index++;
+    }
+    name[name_size_index] = '\0';
+
+    ctx->section->rela = addSection(
+	ctx,
+	name,
+	SHT_RELA,
+	0,
+	ctx->symtab->sectionIndex,
+	ctx->section->sectionIndex,
+	sizeof(Elf32_Rela),
+	0,
+	0);
+
+  }
+
   if(ctx->pass == INDEX){
     ctx->section->rela->size += sizeof(Elf32_Rela);
   }
@@ -125,41 +154,29 @@ void compPass(CompContext*ctx){
     // Sections
 
     if(tokenIdentComp(".text",ctx->token)){
-      if(!(ctx->section = getSectionByIdentifier(ctx))){
+      if(!(ctx->section = getSectionByIdentifier(ctx)))
 	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,0x000C);
-	ctx->section->rela = addSection(ctx,".rela.text",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
-      }
       ctx->token=ctx->token->next;
       continue;
     }
 
     if(tokenIdentComp(".data",ctx->token)){
-      if(!(ctx->section = getSectionByIdentifier(ctx))){
+      if(!(ctx->section = getSectionByIdentifier(ctx)))
 	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0005);
-	ctx->section->rela = addSection(ctx,".rela.data",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
-      }
       ctx->token = ctx->token->next;
       continue;
     }
 
     if(tokenIdentComp(".rodata",ctx->token)){
-      if(!(ctx->section = getSectionByIdentifier(ctx))){
+      if(!(ctx->section = getSectionByIdentifier(ctx)))
 	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096,0x0005);
-	ctx->section->rela = addSection(ctx,".rela.rodata",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
-      }
       ctx->token = ctx->token->next;
       continue;
     }
 
     if(tokenIdentComp(".bss",ctx->token)){
-      if(!(ctx->section = getSectionByIdentifier(ctx))){
+      if(!(ctx->section = getSectionByIdentifier(ctx)))
 	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0006);
-	ctx->section->rela = addSection(ctx,".rela.bss",SHT_RELA,0,
-	    ctx->symtab->sectionIndex,ctx->section->sectionIndex,sizeof(Elf32_Rela),0,0);
-      }
       ctx->token = ctx->token->next;
       continue;
     }

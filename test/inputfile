@@ -25,4 +25,6 @@ symbol1:
   jalr a0, 0x12 t3
   jalr a0, %lo(symbol0  -5)(t3)
   jalr a0, %lo(symbol0 + 5) t3
-  
+
+.data
+
