@@ -80,6 +80,44 @@ uint32_t parseFloatReg(struct Token*token){
 
 }
 
+uint32_t parseIORW(struct Token*token){
+  uint32_t res = 0;
+  if(token->type == Number){
+    if(parseUInt(token) == 0)
+      return 0;
+    else goto fail;
+  }
+  else if(token->type == Identifier){
+    for(char*cp = token->buff; cp<token->buffTop; cp++){
+      switch(*cp){
+	case'i':
+	case'I':
+	  res |= 8;
+	  break;
+	case'o':
+	case'O':
+	  res |= 4;
+	  break;
+	case'r':
+	case'R':
+	  res |= 2;
+	  break;
+	case'w':
+	case'W':
+	  res |= 1;
+	  break;
+	default:
+	  goto fail;
+      }
+    }
+    return res;
+  }
+
+fail:
+  compError("Expcting IORW Flags. Any combination of i,o,r,w or 0 is valid",token);
+  return 0;
+}
+
 struct Token*nextTokenEnforceColon(struct Token*token){
   if(!token->next)
     compError("Unexpected EOF",token);
@@ -325,11 +363,28 @@ void encodeI(CompContext*ctx,uint32_t enc){
 }
 
 void encodeShiftImmediate(CompContext*ctx,uint32_t enc,uint32_t shamt){
-
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  enc += parseIntReg(ctx->token) << 7;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseIntReg(ctx->token) << 15;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseUImm(ctx->token,shamt) << 20;
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeFence(CompContext*ctx){
-
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  uint32_t enc = 0x0F;
+  enc += parseIORW(ctx->token) << 20;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseIORW(ctx->token) << 24;
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeImmediate(CompContext*ctx,uint32_t enc){

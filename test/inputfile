@@ -20,3 +20,7 @@ symbol1:
 
   sb a0, a1, %lo(symbol0 , 5)
 
+  slli a0, a0, 5 
+
+  fence iorw, 0
+
