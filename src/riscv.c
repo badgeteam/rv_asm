@@ -135,6 +135,12 @@ fail:
   return 0;
 }
 
+void nextTokenEnforceExistence(CompContext*ctx){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+}
+
 struct Token*nextTokenEnforceColon(struct Token*token){
   if(!token->next)
     compError("Unexpected EOF",token);
@@ -343,6 +349,27 @@ void encodeS(CompContext*ctx,uint32_t enc){
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
+
+void encodeStore(CompContext*ctx,uint32_t enc){
+  nextTokenEnforceExistence(ctx);
+  enc += parseIntReg(ctx->token) << 20;	// rs2 
+  ctx->token = nextTokenEnforceColon(ctx->token);
+
+  if(ctx->token->type == Number){
+    uint32_t imm = parseImm(ctx->token,12);
+    enc += (imm & 0x1F) << 7;
+    enc += (imm >> 5) << 25;
+    nextTokenEnforceExistence(ctx);
+  }
+  else if(tryCompRelocation(ctx,R_RISCV_LO12_S));
+  else tryCompRelocation(ctx,R_RISCV_PCREL_LO12_S);
+
+  enc += parseBracketReg(ctx) << 15;	// rs1
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
+}
+
+
 void encodeR(CompContext*ctx,uint32_t enc){
   if(!ctx->token->next)
     compError("Unexpected EOF",ctx->token);
@@ -425,9 +452,9 @@ bool compRV32I(CompContext*ctx){
   else if(tokenIdentCompCI("lw"   ,ctx->token))encodeI(ctx,0x2003);
   else if(tokenIdentCompCI("lbu"  ,ctx->token))encodeI(ctx,0x4003);
   else if(tokenIdentCompCI("lhu"  ,ctx->token))encodeI(ctx,0x5003);
-  else if(tokenIdentCompCI("sb"   ,ctx->token))encodeS(ctx,0x0023);
-  else if(tokenIdentCompCI("sh"   ,ctx->token))encodeS(ctx,0x1023);
-  else if(tokenIdentCompCI("sw"   ,ctx->token))encodeS(ctx,0x2023);
+  else if(tokenIdentCompCI("sb"   ,ctx->token))encodeStore(ctx,0x0023);
+  else if(tokenIdentCompCI("sh"   ,ctx->token))encodeStore(ctx,0x1023);
+  else if(tokenIdentCompCI("sw"   ,ctx->token))encodeStore(ctx,0x2023);
   else if(tokenIdentCompCI("addi" ,ctx->token))encodeI(ctx,0x0013);
   else if(tokenIdentCompCI("slti" ,ctx->token))encodeI(ctx,0x2013);
   else if(tokenIdentCompCI("sltiu",ctx->token))encodeI(ctx,0x3013);

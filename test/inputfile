@@ -18,7 +18,7 @@ symbol1:
   addi a0, t3, %lo(symbol1)
   addi a0, t2, %pcrel_lo(symbol0)
 
-  sb a0, a1, %lo(symbol0 , 5)
+  sb a0, %lo(symbol0 , 5)(t3)
 
   slli a0, a0, 5 
 
