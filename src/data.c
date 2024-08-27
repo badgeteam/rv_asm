@@ -97,7 +97,7 @@ bool compData(CompContext*ctx){
       ctx->token = ctx->token->next;
       if(!ctx->token)
 	return true;
-      if(! (ctx->token->type & Colon||Newline) )
+      if(! (ctx->token->type & Comma||Newline) )
 	compError("Colon or Newline expected after byte in .byte",ctx->token);
       ctx->token = ctx->token->next;
     }

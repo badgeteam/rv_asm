@@ -169,68 +169,75 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   int32_t addend = 0;
   if(ctx->token->type != Percent)
     goto fail;
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
 
-  switch(type){
-    case R_RISCV_HI20:
-      if(!tokenIdentComp("hi",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_PCREL_HI20:
-      if(!tokenIdentComp("pcrel_hi",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_LO12_I:
-      if(!tokenIdentComp("lo",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_LO12_S:
-      if(!tokenIdentComp("lo",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_PCREL_LO12_I:
-      if(!tokenIdentComp("pcrel_lo",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_PCREL_LO12_S:
-      if(!tokenIdentComp("pcrel_lo",ctx->token))
-	goto fail;
-      break;
-    default:
+  if(type == R_RISCV_HI20){
+    if(!tokenIdentComp("hi",ctx->token))
       goto fail;
-  }
+  }else if(type == R_RISCV_LO12_I){
+    if(!tokenIdentComp("lo",ctx->token))
+      goto fail;
+  }else if(type == R_RISCV_LO12_S){
+    if(!tokenIdentComp("lo",ctx->token))
+      goto fail;
+  }else if(type == R_RISCV_PCREL_HI20){
+    if(!tokenIdentComp("pcrel_hi",ctx->token))
+      goto fail;
+  }else if(type == R_RISCV_PCREL_LO12_I){
+    if(!tokenIdentComp("pcrel_lo",ctx->token))
+      goto fail;
+  }else if(type == R_RISCV_PCREL_LO12_S){
+    if(!tokenIdentComp("pcrel_lo",ctx->token))
+      goto fail;
+  }else goto fail;
 
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
+//  switch(type){
+//    case R_RISCV_HI20:
+//      if(!tokenIdentComp("hi",ctx->token))
+//	goto fail;
+//      break;
+//    case R_RISCV_PCREL_HI20:
+//      if(!tokenIdentComp("pcrel_hi",ctx->token))
+//	goto fail;
+//      break;
+//    case R_RISCV_LO12_I:
+//      if(!tokenIdentComp("lo",ctx->token))
+//	goto fail;
+//      break;
+//    case R_RISCV_LO12_S:
+//      if(!tokenIdentComp("lo",ctx->token))
+//	goto fail;
+//      break;
+//    case R_RISCV_PCREL_LO12_I:
+//      if(!tokenIdentComp("pcrel_lo",ctx->token))
+//	goto fail;
+//      break;
+//    case R_RISCV_PCREL_LO12_S:
+//      if(!tokenIdentComp("pcrel_lo",ctx->token))
+//	goto fail;
+//      break;
+//   default:
+//      goto fail;
+//  }
 
+
+  nextTokenEnforceExistence(ctx);
   if(ctx->token->type != BracketIn)
     goto fail;
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
-
+  nextTokenEnforceExistence(ctx);
   if(ctx->token->type != Identifier)
     goto fail;
   nameToken = ctx->token;
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
-
+  nextTokenEnforceExistence(ctx);
   if(ctx->token->type == Comma){
     // Modify Addend
-    if(!ctx->token->next)
-      goto fail;
-    ctx->token = ctx->token->next;
+    nextTokenEnforceExistence(ctx);
     
     if(ctx->token->type != Number)
       goto fail;
     addend = parseInt(ctx->token);
-    if(!ctx->token->next)
-      goto fail;
-    ctx->token = ctx->token->next;
+    
+    nextTokenEnforceExistence(ctx);
   }
 
   if(ctx->token->type != BracketOut)
