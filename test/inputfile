@@ -5,7 +5,18 @@
 symbol0:
 symbol1:
 
+
   mul a0, t1, t2
-  lui a0, %hi(symbol1)
-  auipc a0, %pcrel_hi(symbol0)
+  lui a0, %hi(symbol1, -0x123c5)
+  auipc a0, %pcrel_hi(symbol0, 0x1234)
   jal s2, symbol0
+
+  beq a0, s1, symbol1
+
+  addi a0 , t2
+  addi a0, t5, 0x345
+  addi a0, t3, %lo(symbol1)
+  addi a0, t2, %pcrel_lo(symbol0)
+
+  sb a0, a1, %lo(symbol0 , 5)
+

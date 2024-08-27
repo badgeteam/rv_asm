@@ -107,6 +107,89 @@ void insert4ByteCheckLineEnd(CompContext*ctx, uint32_t enc){
     compError("Line Break or EOF expected after RiscV Instruction",ctx->token);
 }
 
+bool tryCompRelocation(CompContext*ctx,uint32_t type){
+  struct Token*backupToken = ctx->token;
+  struct Token*nameToken = NULL;
+  int32_t addend = 0;
+  if(ctx->token->type != Percent)
+    goto fail;
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+
+  switch(type){
+    case R_RISCV_HI20:
+      if(!tokenIdentComp("hi",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_PCREL_HI20:
+      if(!tokenIdentComp("pcrel_hi",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_LO12_I:
+      if(!tokenIdentComp("lo",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_LO12_S:
+      if(!tokenIdentComp("lo",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_PCREL_LO12_I:
+      if(!tokenIdentComp("pcrel_lo",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_PCREL_LO12_S:
+      if(!tokenIdentComp("pcrel_lo",ctx->token))
+	goto fail;
+      break;
+    default:
+      goto fail;
+  }
+
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+
+  if(ctx->token->type != BracketIn)
+    goto fail;
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+
+  if(ctx->token->type != Identifier)
+    goto fail;
+  nameToken = ctx->token;
+  if(!ctx->token->next)
+    goto fail;
+  ctx->token = ctx->token->next;
+
+  if(ctx->token->type == Colon){
+    // Modify Addend
+    if(!ctx->token->next)
+      goto fail;
+    ctx->token = ctx->token->next;
+    
+    if(ctx->token->type != Number)
+      goto fail;
+    addend = parseInt(ctx->token);
+    if(!ctx->token->next)
+      goto fail;
+    ctx->token = ctx->token->next;
+  }
+
+  if(ctx->token->type != BracketOut)
+    goto fail;
+  ctx->token = ctx->token->next;
+
+  // Apply Relocation
+  addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,nameToken),type,addend);
+
+  return true;
+fail:
+  ctx->token = backupToken;
+  return false;
+}
+
 /* This Function parses the nameToken of a specific relocation.
  * Pattern: %type(name)
  */
@@ -124,6 +207,22 @@ struct Token*parseRelocationPattern(CompContext*ctx,uint32_t type){
       break;
     case R_RISCV_PCREL_HI20:
       if(!tokenIdentComp("pcrel_hi",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_LO12_I:
+      if(!tokenIdentComp("lo",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_PCREL_LO12_I:
+      if(!tokenIdentComp("pcrel_lo",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_LO12_S:
+      if(!tokenIdentComp("lo",ctx->token))
+	goto fail;
+      break;
+    case R_RISCV_PCREL_LO12_S:
+      if(!tokenIdentComp("pcrel_lo",ctx->token))
 	goto fail;
       break;
     default:
@@ -162,16 +261,12 @@ void encodeLui(CompContext*ctx){
   if(ctx->token->type == Number){
     enc += (parseInt(ctx->token) >> 12) << 12;
     ctx->token = ctx->token->next;
-    insert4ByteCheckLineEnd(ctx,enc);
-    return;
   }
-  struct Token*nameToken = parseRelocationPattern(ctx,R_RISCV_HI20);
-  if(nameToken){
-    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,nameToken),R_RISCV_HI20,0);
-    insert4ByteCheckLineEnd(ctx,enc);
-    return;
-  }
-  compError("Number or \%hi() Relocation expected",ctx->token);
+  else if(!tryCompRelocation(ctx,R_RISCV_HI20))
+    compError("Number or \%hi relocation expected",ctx->token);
+
+  insert4ByteCheckLineEnd(ctx,enc);
+  return;
 }
 
 void encodeAuipc(CompContext*ctx){
@@ -184,16 +279,12 @@ void encodeAuipc(CompContext*ctx){
   if(ctx->token->type == Number){
     enc += (parseInt(ctx->token) >> 12) << 12;
     ctx->token = ctx->token->next;
-    insert4ByteCheckLineEnd(ctx,enc);
-    return;
   }
-  struct Token*nameToken = parseRelocationPattern(ctx,R_RISCV_PCREL_HI20);
-  if(nameToken){
-    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,nameToken),R_RISCV_PCREL_HI20,0);
-    insert4ByteCheckLineEnd(ctx,enc);
-    return;
-  }
-  compError("Number or \%pcrel_hi() Relocation expected",ctx->token);
+  else if(!tryCompRelocation(ctx,R_RISCV_PCREL_HI20))
+    compError("Number or \%pcrel_hi relocation expected",ctx->token);
+
+  insert4ByteCheckLineEnd(ctx,enc);
+  return;
 }
 
 void encodeU(CompContext*ctx, uint32_t enc){
@@ -214,6 +305,50 @@ void encodeU(CompContext*ctx, uint32_t enc){
   compError("Symbol Name expected for relocation",ctx->token);
 }
 
+void encodeB(CompContext*ctx,uint32_t enc){
+  if(!ctx->token->next)
+    compError("UnexpectedEOF",ctx->token);
+  ctx->token = ctx->token->next;
+  enc += parseIntReg(ctx->token) << 15;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseIntReg(ctx->token) << 20;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  if(ctx->token->type == Number)
+    compError("B Encoding with immediate number not implemented. use symbols",ctx->token);
+  if(ctx->token->type == Identifier){
+    addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,ctx->token),R_RISCV_BRANCH,0);
+    ctx->token = ctx->token->next;
+    insert4ByteCheckLineEnd(ctx,enc);
+    return;
+  }
+  compError("Symbol Name expected for relocation",ctx->token);
+}
+
+void encodeS(CompContext*ctx,uint32_t enc){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  enc += parseIntReg(ctx->token) << 15;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseIntReg(ctx->token) << 20;
+  if(ctx->token->next && ctx->token->next->type != Newline){
+    ctx->token = nextTokenEnforceColon(ctx->token);
+    if(ctx->token->type == Number){
+      uint32_t imm = parseImm(ctx->token,12);
+      enc += (imm & 0x1F) << 7;
+      enc += (imm >> 5) << 25;
+      ctx->token = ctx->token->next;
+    }
+    else if(tryCompRelocation(ctx,R_RISCV_LO12_S));
+    else if(tryCompRelocation(ctx,R_RISCV_PCREL_LO12_S));
+    else
+     compError("The offset of an S encoding has to be a number, a \%lo(), a \%pcrel_lo() or nothing",ctx->token);
+  }else{
+    ctx->token = ctx->token->next;
+  }
+  insert4ByteCheckLineEnd(ctx,enc);
+}
+
 void encodeR(CompContext*ctx,uint32_t enc){
   if(!ctx->token->next)
     compError("Unexpected EOF",ctx->token);
@@ -227,62 +362,100 @@ void encodeR(CompContext*ctx,uint32_t enc){
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
+void encodeI(CompContext*ctx,uint32_t enc){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  enc += parseIntReg(ctx->token) << 7;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  enc += parseIntReg(ctx->token) << 15;
+  if(ctx->token->next && ctx->token->next->type != Newline){
+    ctx->token = nextTokenEnforceColon(ctx->token);
+    if(ctx->token->type == Number){
+      enc += parseImm(ctx->token,12) << 20;
+      ctx->token = ctx->token->next;
+    }
+    else if(tryCompRelocation(ctx,R_RISCV_LO12_I));
+    else if(tryCompRelocation(ctx,R_RISCV_PCREL_LO12_I));
+    else
+      compError("The offset of an I encoding has to be a number, a \%lo(), a \%pcrel_lo() or nothing",ctx->token);
+  }else{
+    ctx->token = ctx->token->next;
+  }
+  insert4ByteCheckLineEnd(ctx,enc);
+}
+
+void encodeShiftImmediate(CompContext*ctx,uint32_t enc,uint32_t shamt){
+
+}
+
+void encodeFence(CompContext*ctx){
+
+}
+
+void encodeImmediate(CompContext*ctx,uint32_t enc){
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
+}
+
 bool compRV32I(CompContext*ctx){
-  if(tokenIdentCompCI("lui"  ,ctx->token)){encodeLui(ctx);return true;}
-  if(tokenIdentCompCI("auipc",ctx->token)){encodeAuipc(ctx);return true;}
-  if(tokenIdentCompCI("jal"  ,ctx->token)){encodeU(ctx,0x6F);return true;}
-  if(tokenIdentCompCI("jalr" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("beq"  ,ctx->token)){return false;}
-  if(tokenIdentCompCI("bne"  ,ctx->token)){return false;}
-  if(tokenIdentCompCI("blt"  ,ctx->token)){return false;}
-  if(tokenIdentCompCI("bge"  ,ctx->token)){return false;}
-  if(tokenIdentCompCI("bltu" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("bleu" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("lb"   ,ctx->token)){return false;}
-  if(tokenIdentCompCI("lh"   ,ctx->token)){return false;}
-  if(tokenIdentCompCI("lw"   ,ctx->token)){return false;}
-  if(tokenIdentCompCI("lbu"  ,ctx->token)){return false;}
-  if(tokenIdentCompCI("lhu"  ,ctx->token)){return false;}
-  if(tokenIdentCompCI("sb"   ,ctx->token)){return false;}
-  if(tokenIdentCompCI("sh"   ,ctx->token)){return false;}
-  if(tokenIdentCompCI("sw"   ,ctx->token)){return false;}
-  if(tokenIdentCompCI("addi" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("slti" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("sltiu",ctx->token)){return false;}
-  if(tokenIdentCompCI("xori" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("ori"  ,ctx->token)){return false;}
-  if(tokenIdentCompCI("andi" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("slli" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("srli" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("srai" ,ctx->token)){return false;}
-  if(tokenIdentCompCI("add"  ,ctx->token)){encodeR(ctx,0x00000033);return true;}
-  if(tokenIdentCompCI("sub"  ,ctx->token)){encodeR(ctx,0x40000033);return true;}
-  if(tokenIdentCompCI("sll"  ,ctx->token)){encodeR(ctx,0x00001033);return true;}
-  if(tokenIdentCompCI("slt"  ,ctx->token)){encodeR(ctx,0x00002033);return true;}
-  if(tokenIdentCompCI("sltu" ,ctx->token)){encodeR(ctx,0x00003033);return true;}
-  if(tokenIdentCompCI("xor"  ,ctx->token)){encodeR(ctx,0x00004033);return true;}
-  if(tokenIdentCompCI("srl"  ,ctx->token)){encodeR(ctx,0x00005033);return true;}
-  if(tokenIdentCompCI("sra"  ,ctx->token)){encodeR(ctx,0x40005033);return true;}
-  if(tokenIdentCompCI("or"   ,ctx->token)){encodeR(ctx,0x00006033);return true;}
-  if(tokenIdentCompCI("and"  ,ctx->token)){encodeR(ctx,0x00007033);return true;}
-  if(tokenIdentCompCI("fence",ctx->token)){return false;}
-  if(tokenIdentCompCI("fence.tso",ctx->token)){return false;}
-  if(tokenIdentCompCI("pause",ctx->token)){return false;}
-  if(tokenIdentCompCI("ecall",ctx->token)){return false;}
-  if(tokenIdentCompCI("ebreak",ctx->token)){return false;}
-  return false;
+  if     (tokenIdentCompCI("lui"  ,ctx->token))encodeLui(ctx);
+  else if(tokenIdentCompCI("auipc",ctx->token))encodeAuipc(ctx);
+  else if(tokenIdentCompCI("jal"  ,ctx->token))encodeU(ctx,0x6F);
+  else if(tokenIdentCompCI("jalr" ,ctx->token))encodeI(ctx,0x67);
+  else if(tokenIdentCompCI("beq"  ,ctx->token))encodeB(ctx,0x0063);
+  else if(tokenIdentCompCI("bne"  ,ctx->token))encodeB(ctx,0x1063);
+  else if(tokenIdentCompCI("blt"  ,ctx->token))encodeB(ctx,0x4063);
+  else if(tokenIdentCompCI("bge"  ,ctx->token))encodeB(ctx,0x5063);
+  else if(tokenIdentCompCI("bltu" ,ctx->token))encodeB(ctx,0x6063);
+  else if(tokenIdentCompCI("bleu" ,ctx->token))encodeB(ctx,0x7063);
+  else if(tokenIdentCompCI("lb"   ,ctx->token))encodeI(ctx,0x0003);
+  else if(tokenIdentCompCI("lh"   ,ctx->token))encodeI(ctx,0x1003);
+  else if(tokenIdentCompCI("lw"   ,ctx->token))encodeI(ctx,0x2003);
+  else if(tokenIdentCompCI("lbu"  ,ctx->token))encodeI(ctx,0x4003);
+  else if(tokenIdentCompCI("lhu"  ,ctx->token))encodeI(ctx,0x5003);
+  else if(tokenIdentCompCI("sb"   ,ctx->token))encodeS(ctx,0x0023);
+  else if(tokenIdentCompCI("sh"   ,ctx->token))encodeS(ctx,0x1023);
+  else if(tokenIdentCompCI("sw"   ,ctx->token))encodeS(ctx,0x2023);
+  else if(tokenIdentCompCI("addi" ,ctx->token))encodeI(ctx,0x0013);
+  else if(tokenIdentCompCI("slti" ,ctx->token))encodeI(ctx,0x2013);
+  else if(tokenIdentCompCI("sltiu",ctx->token))encodeI(ctx,0x3013);
+  else if(tokenIdentCompCI("xori" ,ctx->token))encodeI(ctx,0x4013);
+  else if(tokenIdentCompCI("ori"  ,ctx->token))encodeI(ctx,0x6013);
+  else if(tokenIdentCompCI("andi" ,ctx->token))encodeI(ctx,0x7013);
+  else if(tokenIdentCompCI("slli" ,ctx->token))encodeShiftImmediate(ctx,0x00001013,5);
+  else if(tokenIdentCompCI("srli" ,ctx->token))encodeShiftImmediate(ctx,0x00005013,5);
+  else if(tokenIdentCompCI("srai" ,ctx->token))encodeShiftImmediate(ctx,0x40005013,5);
+  else if(tokenIdentCompCI("add"  ,ctx->token))encodeR(ctx,0x00000033);
+  else if(tokenIdentCompCI("sub"  ,ctx->token))encodeR(ctx,0x40000033);
+  else if(tokenIdentCompCI("sll"  ,ctx->token))encodeR(ctx,0x00001033);
+  else if(tokenIdentCompCI("slt"  ,ctx->token))encodeR(ctx,0x00002033);
+  else if(tokenIdentCompCI("sltu" ,ctx->token))encodeR(ctx,0x00003033);
+  else if(tokenIdentCompCI("xor"  ,ctx->token))encodeR(ctx,0x00004033);
+  else if(tokenIdentCompCI("srl"  ,ctx->token))encodeR(ctx,0x00005033);
+  else if(tokenIdentCompCI("sra"  ,ctx->token))encodeR(ctx,0x40005033);
+  else if(tokenIdentCompCI("or"   ,ctx->token))encodeR(ctx,0x00006033);
+  else if(tokenIdentCompCI("and"  ,ctx->token))encodeR(ctx,0x00007033);
+  else if(tokenIdentCompCI("fence",ctx->token))encodeFence(ctx);
+  else if(tokenIdentCompCI("fence.tso",ctx->token))encodeImmediate(ctx,0x8330000F);
+  else if(tokenIdentCompCI("pause",ctx->token))encodeImmediate(ctx,0x0100000F);
+  else if(tokenIdentCompCI("ecall",ctx->token))encodeImmediate(ctx,0x00000073);
+  else if(tokenIdentCompCI("ebreak",ctx->token))encodeImmediate(ctx,0x00100073);
+  else return false;
+  return true;
 }
 
 bool compRV32M(CompContext*ctx){
-  if(tokenIdentCompCI("mul",ctx->token))	{encodeR(ctx,0x02000033);return true;}
-  if(tokenIdentCompCI("mulh",ctx->token))	{encodeR(ctx,0x02001033);return true;}
-  if(tokenIdentCompCI("mulhsu",ctx->token))	{encodeR(ctx,0x02002033);return true;}
-  if(tokenIdentCompCI("mulhu",ctx->token))	{encodeR(ctx,0x02003033);return true;}
-  if(tokenIdentCompCI("div",ctx->token))	{encodeR(ctx,0x02004033);return true;}
-  if(tokenIdentCompCI("divu",ctx->token))	{encodeR(ctx,0x02005033);return true;}
-  if(tokenIdentCompCI("rem",ctx->token))	{encodeR(ctx,0x02006033);return true;}
-  if(tokenIdentCompCI("remu",ctx->token))	{encodeR(ctx,0x02007033);return true;}
-  return false;
+  if     (tokenIdentCompCI("mul",ctx->token))	encodeR(ctx,0x02000033);
+  else if(tokenIdentCompCI("mulh",ctx->token))	encodeR(ctx,0x02001033);
+  else if(tokenIdentCompCI("mulhsu",ctx->token))encodeR(ctx,0x02002033);
+  else if(tokenIdentCompCI("mulhu",ctx->token))	encodeR(ctx,0x02003033);
+  else if(tokenIdentCompCI("div",ctx->token))	encodeR(ctx,0x02004033);
+  else if(tokenIdentCompCI("divu",ctx->token))	encodeR(ctx,0x02005033);
+  else if(tokenIdentCompCI("rem",ctx->token))	encodeR(ctx,0x02006033);
+  else if(tokenIdentCompCI("remu",ctx->token))	encodeR(ctx,0x02007033);
+  else return false;
+  return true;
 }
 
 bool compRV32A(CompContext*ctx){

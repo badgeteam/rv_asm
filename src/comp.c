@@ -257,14 +257,6 @@ void comp(char*inputfilename,char*outputfilename){
     sec->next->shdr.sh_offset = sec->shdr.sh_offset + (sec->buff ? sec->index : 0);
   }
 
-  // Print Sections
-//  for(Section*sec = ctx->sectionHead;sec;sec=sec->next)    
-//    printf("Section %s\t name_offset = %d\tsize=%d\t offset=%d\n",
-//	sec->name,
-//	sec->shdr.sh_name,
-//	sec->size,
-//	sec->shdr.sh_offset);
-
   // Export
   export_elf(ctx,outputfilename);
 
