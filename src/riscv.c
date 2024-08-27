@@ -143,7 +143,7 @@ void nextTokenEnforceExistence(CompContext*ctx){
 
 void nextTokenEnforceComma(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
-  if(ctx->token->type != Colon)
+  if(ctx->token->type != Comma)
     compError("Comma Expected",ctx->token);
   nextTokenEnforceExistence(ctx);
 }
@@ -219,7 +219,7 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
     goto fail;
   ctx->token = ctx->token->next;
 
-  if(ctx->token->type == Colon){
+  if(ctx->token->type == Comma){
     // Modify Addend
     if(!ctx->token->next)
       goto fail;

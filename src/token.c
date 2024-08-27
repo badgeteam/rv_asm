@@ -66,7 +66,7 @@ struct Token*tokenizeFile(char*filename){
     switch(c){
       case',':
 	      index++;
-	      type = Colon;
+	      type = Comma;
 	      break;
       case':':
 	      index++;
@@ -312,7 +312,7 @@ uint32_t parseImm(struct Token*token,uint32_t length){
 
 char*tokenTypeName(struct Token*token){
   switch(token->type){
-    case Colon: 	return "Colon";
+    case Comma: 	return "Comma";
     case Doubledot:	return "Doubledot";
     case BracketIn:	return "Bracket In";
     case BracketOut:	return "Bracket Out";

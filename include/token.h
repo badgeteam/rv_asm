@@ -15,7 +15,7 @@ struct File{
 };
 
 enum TokType{
-  Colon		= 0x00000001,
+  Comma		= 0x00000001,
   Doubledot	= 0x00000002,
   BracketIn	= 0x00000004,
   BracketOut	= 0x00000008,
