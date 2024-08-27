@@ -50,19 +50,21 @@ uint32_t parseIntReg(struct Token*token){
   
 }
 
+/* This function parses an Int Register optionally surrounded by Brackets.
+ * This function does not advance after the last relevant token.
+ */
 uint32_t parseBracketReg(CompContext*ctx){
-  if(ctx->token->type != BracketIn)
-    compError("Expecting (",ctx->token);
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
-  uint32_t reg = parseIntReg(ctx->token);
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
-  if(ctx->token->type != BracketOut)
-    compError("Expecting )",ctx->token);
-  return reg;
+  if(ctx->token->type == BracketIn){
+    if(!ctx->token->next)
+      compError("Unexpected EOF",ctx->token);
+    ctx->token = ctx->token->next;
+    uint32_t reg = parseIntReg(ctx->token);
+    if(!ctx->token->next || ctx->token->next->type != BracketOut)
+      compError("Expecting )",ctx->token);
+    ctx->token = ctx->token->next;
+    return reg;
+  }
+  return parseIntReg(ctx->token);
 }
 
 uint32_t parseFloatReg(struct Token*token){
