@@ -262,7 +262,11 @@ void encodeU(CompContext*ctx, uint32_t enc){
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number){
-    compError("U encoding with immediate number not implemented. use symbols",ctx->token);
+    uint32_t offset = parseImm(ctx->token,21);
+    enc += ((offset >> 1) & 0x3FF) << 21;
+    enc += ((offset >> 11) & 1) << 20;
+    enc += ((offset >> 12) & 0xFF) << 12;
+    enc += ((offset >> 20) & 1) << 31;
   }
   if(ctx->token->type == Identifier){
     addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,ctx->token),R_RISCV_JAL,0); 
@@ -270,7 +274,7 @@ void encodeU(CompContext*ctx, uint32_t enc){
     insert4ByteCheckLineEnd(ctx,enc);
     return;
   }
-  compError("Symbol Name expected for relocation",ctx->token);
+  compError("Symbol Name or Number expected",ctx->token);
 }
 
 void encodeB(CompContext*ctx,uint32_t enc){
@@ -279,15 +283,20 @@ void encodeB(CompContext*ctx,uint32_t enc){
   nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 20;
   nextTokenEnforceComma(ctx);
-  if(ctx->token->type == Number)
-    compError("B Encoding with immediate number not implemented. use symbols",ctx->token);
+  if(ctx->token->type == Number){
+    uint32_t offset = parseImm(ctx->token,13);
+    enc += ((offset >> 1) & 0x0F) << 8;
+    enc += ((offset >> 5) & 0x3F) << 25;
+    enc += ((offset >> 11) & 1) << 7;
+    enc += ((offset >> 12) & 1) << 31;
+  }
   if(ctx->token->type == Identifier){
     addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,ctx->token),R_RISCV_BRANCH,0);
     ctx->token = ctx->token->next;
     insert4ByteCheckLineEnd(ctx,enc);
     return;
   }
-  compError("Symbol Name expected for relocation",ctx->token);
+  compError("Symbol Name or Number expected",ctx->token);
 }
 
 void encodeStore(CompContext*ctx,uint32_t enc){
