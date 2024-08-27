@@ -50,6 +50,21 @@ uint32_t parseIntReg(struct Token*token){
   
 }
 
+uint32_t parseBracketReg(CompContext*ctx){
+  if(ctx->token->type != BracketIn)
+    compError("Expecting (",ctx->token);
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  uint32_t reg = parseIntReg(ctx->token);
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  if(ctx->token->type != BracketOut)
+    compError("Expecting )",ctx->token);
+  return reg;
+}
+
 uint32_t parseFloatReg(struct Token*token){
   if( (*(token->buff) != 'f') || token->buff+1 >= token->buffTop)
     compError("Unknown RiscV Float Register",token);
@@ -462,7 +477,7 @@ void encodeAtomic(CompContext*ctx,uint32_t enc,bool load){
     enc += parseIntReg(ctx->token) << 20;
     ctx->token = nextTokenEnforceColon(ctx->token);
   }
-  enc += parseIntReg(ctx->token) << 15;
+  enc += parseBracketReg(ctx) << 15;
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
