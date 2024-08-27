@@ -24,3 +24,4 @@ symbol1:
 
   fence iorw, 0
 
+  fence.i

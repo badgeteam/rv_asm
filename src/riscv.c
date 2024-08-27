@@ -473,7 +473,10 @@ bool compRV32Zicsr(CompContext*ctx){
 }
 
 bool compRV32Zifencei(CompContext*ctx){
-
+  if(tokenIdentCompCI("fence.i",ctx->token)){
+    encodeImmediate(ctx,0x0000100F);
+    return true;
+  }
   return false;
 }
 
