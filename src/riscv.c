@@ -148,18 +148,6 @@ void nextTokenEnforceComma(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
 }
 
-struct Token*nextTokenEnforceColon(struct Token*token){
-  if(!token->next)
-    compError("Unexpected EOF",token);
-  token = token->next;
-  if(token->type != Colon)
-    compError("Colon expected",token);
-  if(!token->next)
-    compError("Unexpected EOF",token);
-  token = token->next;
-  return token;
-}
-
 void insert4ByteCheckLineEnd(CompContext*ctx, uint32_t enc){
   if(ctx->pass == INDEX){
     ctx->section->size += 4;
@@ -259,12 +247,10 @@ fail:
 }
 
 void encodeLui(CompContext*ctx){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   uint32_t enc = 0x37;
   enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number){
     enc += (parseInt(ctx->token) >> 12) << 12;
     ctx->token = ctx->token->next;
@@ -277,12 +263,10 @@ void encodeLui(CompContext*ctx){
 }
 
 void encodeAuipc(CompContext*ctx){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   uint32_t enc = 0x17;
   enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number){
     enc += (parseInt(ctx->token) >> 12) << 12;
     ctx->token = ctx->token->next;
@@ -295,11 +279,9 @@ void encodeAuipc(CompContext*ctx){
 }
 
 void encodeU(CompContext*ctx, uint32_t enc){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number){
     compError("U encoding with immediate number not implemented. use symbols",ctx->token);
   }
@@ -313,13 +295,11 @@ void encodeU(CompContext*ctx, uint32_t enc){
 }
 
 void encodeB(CompContext*ctx,uint32_t enc){
-  if(!ctx->token->next)
-    compError("UnexpectedEOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 15;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 20;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number)
     compError("B Encoding with immediate number not implemented. use symbols",ctx->token);
   if(ctx->token->type == Identifier){
@@ -364,27 +344,23 @@ void encodeLoadJalr(CompContext*ctx,uint32_t enc){
 }
 
 void encodeR(CompContext*ctx,uint32_t enc){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 15;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 20;
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeI(CompContext*ctx,uint32_t enc){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 15;
   if(ctx->token->next && ctx->token->next->type != Newline){
-    ctx->token = nextTokenEnforceColon(ctx->token);
+    nextTokenEnforceComma(ctx);
     if(ctx->token->type == Number){
       enc += parseImm(ctx->token,12) << 20;
       ctx->token = ctx->token->next;
@@ -400,25 +376,21 @@ void encodeI(CompContext*ctx,uint32_t enc){
 }
 
 void encodeShiftImmediate(CompContext*ctx,uint32_t enc,uint32_t shamt){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 15;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   enc += parseUImm(ctx->token,shamt) << 20;
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeFence(CompContext*ctx){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   uint32_t enc = 0x0F;
   enc += parseIORW(ctx->token) << 20;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   enc += parseIORW(ctx->token) << 24;
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
@@ -490,14 +462,12 @@ bool compRV32M(CompContext*ctx){
 }
 
 void encodeAtomic(CompContext*ctx,uint32_t enc,bool load){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
+  nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
-  ctx->token = nextTokenEnforceColon(ctx->token);
+  nextTokenEnforceComma(ctx);
   if(!load){
     enc += parseIntReg(ctx->token) << 20;
-    ctx->token = nextTokenEnforceColon(ctx->token);
+    nextTokenEnforceComma(ctx);
   }
   enc += parseBracketReg(ctx) << 15;
   ctx->token = ctx->token->next;
