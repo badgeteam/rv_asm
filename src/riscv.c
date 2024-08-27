@@ -452,9 +452,68 @@ bool compRV32M(CompContext*ctx){
   return true;
 }
 
-bool compRV32A(CompContext*ctx){
+void encodeAtomic(CompContext*ctx,uint32_t enc,bool load){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+  enc += parseIntReg(ctx->token) << 7;
+  ctx->token = nextTokenEnforceColon(ctx->token);
+  if(!load){
+    enc += parseIntReg(ctx->token) << 20;
+    ctx->token = nextTokenEnforceColon(ctx->token);
+  }
+  enc += parseIntReg(ctx->token) << 15;
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
+}
 
-  return false;
+bool compRV32A(CompContext*ctx){
+  if     (tokenIdentCompCI("lr.w",	     ctx->token))encodeAtomic(ctx,0x1000202F,true);
+  else if(tokenIdentCompCI("lr.w.aq",	     ctx->token))encodeAtomic(ctx,0x1200202F,true);
+  else if(tokenIdentCompCI("lr.w.rl",	     ctx->token))encodeAtomic(ctx,0x1400202F,true);
+  else if(tokenIdentCompCI("lr.w.aq.rl",     ctx->token))encodeAtomic(ctx,0x1600202F,true);
+  else if(tokenIdentCompCI("sc.w",           ctx->token))encodeAtomic(ctx,0x1800202F,false);
+  else if(tokenIdentCompCI("sc.w.aq",        ctx->token))encodeAtomic(ctx,0x1A00202F,false);
+  else if(tokenIdentCompCI("sc.w.rl",        ctx->token))encodeAtomic(ctx,0x1C00202F,false);
+  else if(tokenIdentCompCI("sc.w.aq.rl",     ctx->token))encodeAtomic(ctx,0x1E00202F,false);
+  else if(tokenIdentCompCI("amoswap.w",	     ctx->token))encodeAtomic(ctx,0x0800202F,false);
+  else if(tokenIdentCompCI("amoswap.w.aq",   ctx->token))encodeAtomic(ctx,0x0A00202F,false);
+  else if(tokenIdentCompCI("amoswap.w.rl",   ctx->token))encodeAtomic(ctx,0x0C00202F,false);
+  else if(tokenIdentCompCI("amoswap.w.aq.rl",ctx->token))encodeAtomic(ctx,0x0E00202F,false);
+  else if(tokenIdentCompCI("amoadd.w",       ctx->token))encodeAtomic(ctx,0x0000202F,false);
+  else if(tokenIdentCompCI("amoadd.w.aq",    ctx->token))encodeAtomic(ctx,0x0200202F,false);
+  else if(tokenIdentCompCI("amoadd.w.rl",    ctx->token))encodeAtomic(ctx,0x0400202F,false);
+  else if(tokenIdentCompCI("amoadd.w.aq.rl", ctx->token))encodeAtomic(ctx,0x0600202F,false);
+  else if(tokenIdentCompCI("amoxor.w",       ctx->token))encodeAtomic(ctx,0x2000202F,false);
+  else if(tokenIdentCompCI("amoxor.w.aq",    ctx->token))encodeAtomic(ctx,0x2200202F,false);
+  else if(tokenIdentCompCI("amoxor.w.rl",    ctx->token))encodeAtomic(ctx,0x2400202F,false);
+  else if(tokenIdentCompCI("amoxor.w.aq.rl", ctx->token))encodeAtomic(ctx,0x2600202F,false);
+  else if(tokenIdentCompCI("amoand.w",       ctx->token))encodeAtomic(ctx,0x6000202F,false);
+  else if(tokenIdentCompCI("amoand.w.aq",    ctx->token))encodeAtomic(ctx,0x6200202F,false);
+  else if(tokenIdentCompCI("amoand.w.rl",    ctx->token))encodeAtomic(ctx,0x6400202F,false);
+  else if(tokenIdentCompCI("amoand.w.aq.rl", ctx->token))encodeAtomic(ctx,0x6600202F,false);
+  else if(tokenIdentCompCI("amoor.w",        ctx->token))encodeAtomic(ctx,0x4000202F,false);
+  else if(tokenIdentCompCI("amoor.w.aq",     ctx->token))encodeAtomic(ctx,0x4200202F,false);
+  else if(tokenIdentCompCI("amoor.w.rl",     ctx->token))encodeAtomic(ctx,0x4400202F,false);
+  else if(tokenIdentCompCI("amoor.w.aq.rl",  ctx->token))encodeAtomic(ctx,0x4600202F,false);
+  else if(tokenIdentCompCI("amomin.w",       ctx->token))encodeAtomic(ctx,0x8000202F,false);
+  else if(tokenIdentCompCI("amomin.w.aq",    ctx->token))encodeAtomic(ctx,0x8200202F,false);
+  else if(tokenIdentCompCI("amomin.w.rl",    ctx->token))encodeAtomic(ctx,0x8400202F,false);
+  else if(tokenIdentCompCI("amomin.w.aq.rl", ctx->token))encodeAtomic(ctx,0x8600202F,false);
+  else if(tokenIdentCompCI("amomax.w",       ctx->token))encodeAtomic(ctx,0xA000202F,false);
+  else if(tokenIdentCompCI("amomax.w.aq",    ctx->token))encodeAtomic(ctx,0xA200202F,false);
+  else if(tokenIdentCompCI("amomax.w.rl",    ctx->token))encodeAtomic(ctx,0xA400202F,false);
+  else if(tokenIdentCompCI("amomax.w.aq.rl", ctx->token))encodeAtomic(ctx,0xA600202F,false);
+  else if(tokenIdentCompCI("amominu.w",      ctx->token))encodeAtomic(ctx,0xC000202F,false);
+  else if(tokenIdentCompCI("amominu.w.aq",   ctx->token))encodeAtomic(ctx,0xC200202F,false);
+  else if(tokenIdentCompCI("amominu.w.rl",   ctx->token))encodeAtomic(ctx,0xC400202F,false);
+  else if(tokenIdentCompCI("amominu.w.aq.rl",ctx->token))encodeAtomic(ctx,0xC600202F,false);
+  else if(tokenIdentCompCI("amomaxu.w",      ctx->token))encodeAtomic(ctx,0xE000202F,false);
+  else if(tokenIdentCompCI("amomaxu.w.aq",   ctx->token))encodeAtomic(ctx,0xE200202F,false);
+  else if(tokenIdentCompCI("amomaxu.w.rl",   ctx->token))encodeAtomic(ctx,0xE400202F,false);
+  else if(tokenIdentCompCI("amomaxu.w.aq.rl",ctx->token))encodeAtomic(ctx,0xE600202F,false);
+  else return false;
+  return true;
 }
 
 bool compRV32F(CompContext*ctx){

@@ -25,3 +25,11 @@ symbol1:
   fence iorw, 0
 
   fence.i
+
+  lr.w a0, a0
+
+  sc.w a0, a0, a0
+
+  amoswap.w a0, a0, a0
+
+
