@@ -191,36 +191,6 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
       goto fail;
   }else goto fail;
 
-//  switch(type){
-//    case R_RISCV_HI20:
-//      if(!tokenIdentComp("hi",ctx->token))
-//	goto fail;
-//      break;
-//    case R_RISCV_PCREL_HI20:
-//      if(!tokenIdentComp("pcrel_hi",ctx->token))
-//	goto fail;
-//      break;
-//    case R_RISCV_LO12_I:
-//      if(!tokenIdentComp("lo",ctx->token))
-//	goto fail;
-//      break;
-//    case R_RISCV_LO12_S:
-//      if(!tokenIdentComp("lo",ctx->token))
-//	goto fail;
-//      break;
-//    case R_RISCV_PCREL_LO12_I:
-//      if(!tokenIdentComp("pcrel_lo",ctx->token))
-//	goto fail;
-//      break;
-//    case R_RISCV_PCREL_LO12_S:
-//      if(!tokenIdentComp("pcrel_lo",ctx->token))
-//	goto fail;
-//      break;
-//   default:
-//      goto fail;
-//  }
-
-
   nextTokenEnforceExistence(ctx);
   if(ctx->token->type != BracketIn)
     goto fail;
