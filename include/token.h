@@ -2,7 +2,6 @@
 
 #include<stdint.h>
 #include<stdio.h>
-#include<stdlib.h>
 #include<stdbool.h>
 #include<sys/syscall.h>
 #include<unistd.h>
@@ -25,6 +24,8 @@ enum TokType{
   Identifier	= 0x00000080,
   Newline	= 0x00000100,
   Percent	= 0x00000200,
+  Plus		= 0x00000400,
+  Minus		= 0x00000800,
 };
 
 struct Token{

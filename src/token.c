@@ -84,6 +84,10 @@ struct Token*tokenizeFile(char*filename){
 	      index++;
 	      type = Percent;
 	      break;
+      case'+':
+	      index++;
+	      type = Plus;
+	      break;
       // Character
       case'\'':
 	      index++;
@@ -125,8 +129,10 @@ struct Token*tokenizeFile(char*filename){
 	      index++;
 	      if(index >= size)
 		tokenizeError("Unexpected EOF",file,line);
-	      if(buff[index] < '0' || '9' < buff[index])
-		tokenizeError("There must be a number after a Minus",file,line);
+	      if(buff[index] < '0' || '9' < buff[index]){
+		type = Minus;
+		break;
+	      }
       case'0':
 	      if(index + 1 < size){
 		index++;

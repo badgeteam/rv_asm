@@ -199,14 +199,13 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
     goto fail;
   nameToken = ctx->token;
   nextTokenEnforceExistence(ctx);
+
   if(ctx->token->type == Comma){
     // Modify Addend
     nextTokenEnforceExistence(ctx);
-    
     if(ctx->token->type != Number)
       goto fail;
     addend = parseInt(ctx->token);
-    
     nextTokenEnforceExistence(ctx);
   }
 
@@ -216,7 +215,6 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
 
   // Apply Relocation
   addRelaEntry(ctx,ctx->section->index,getSymbolIndex(ctx,nameToken),type,addend);
-
   return true;
 fail:
   ctx->token = backupToken;
