@@ -26,6 +26,23 @@
 ### Relocations
 ### Instructions
 #### RiscV32I
+
+##### Load Store
+
+```
+lw rd, (rs1)
+lw rd, offset(rs1)
+lw rd, %lo(symbol)(rs1)
+lw rd, %pcrel_lo(symbol)(rs1)
+```
+
+```
+sw rs2, (rs1)
+sw rs2, offset(rs1)
+sw rs2, %lo(symbol)(rs1)
+sw rs2, %pcrel_lo(symbol)(rs1)
+```
+
 ##### Lui - Load Upper Immediate
 ```
 Lui rd, <number>

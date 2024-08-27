@@ -141,6 +141,13 @@ void nextTokenEnforceExistence(CompContext*ctx){
   ctx->token = ctx->token->next;
 }
 
+void nextTokenEnforceComma(CompContext*ctx){
+  nextTokenEnforceExistence(ctx);
+  if(ctx->token->type != Colon)
+    compError("Comma Expected",ctx->token);
+  nextTokenEnforceExistence(ctx);
+}
+
 struct Token*nextTokenEnforceColon(struct Token*token){
   if(!token->next)
     compError("Unexpected EOF",token);
@@ -327,8 +334,7 @@ void encodeB(CompContext*ctx,uint32_t enc){
 void encodeStore(CompContext*ctx,uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 20;	// rs2 
-  ctx->token = nextTokenEnforceColon(ctx->token);
-
+  nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number){
     uint32_t imm = parseImm(ctx->token,12);
     enc += (imm & 0x1F) << 7;
@@ -337,12 +343,25 @@ void encodeStore(CompContext*ctx,uint32_t enc){
   }
   else if(tryCompRelocation(ctx,R_RISCV_LO12_S));
   else tryCompRelocation(ctx,R_RISCV_PCREL_LO12_S);
-
   enc += parseBracketReg(ctx) << 15;	// rs1
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
+void encodeLoadJalr(CompContext*ctx,uint32_t enc){
+  nextTokenEnforceExistence(ctx);
+  enc += parseIntReg(ctx->token) << 7;	// rd
+  nextTokenEnforceComma(ctx);
+  if(ctx->token->type == Number){
+    enc += parseImm(ctx->token,12) << 20;
+    nextTokenEnforceExistence(ctx);
+  }
+  else if(tryCompRelocation(ctx,R_RISCV_LO12_I));
+  else tryCompRelocation(ctx,R_RISCV_PCREL_LO12_I);
+  enc += parseBracketReg(ctx) << 15;	// rs1
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
+}
 
 void encodeR(CompContext*ctx,uint32_t enc){
   if(!ctx->token->next)
@@ -414,18 +433,18 @@ bool compRV32I(CompContext*ctx){
   if     (tokenIdentCompCI("lui"  ,ctx->token))encodeLui(ctx);
   else if(tokenIdentCompCI("auipc",ctx->token))encodeAuipc(ctx);
   else if(tokenIdentCompCI("jal"  ,ctx->token))encodeU(ctx,0x6F);
-  else if(tokenIdentCompCI("jalr" ,ctx->token))encodeI(ctx,0x67);
+  else if(tokenIdentCompCI("jalr" ,ctx->token))encodeLoadJalr(ctx,0x67);
   else if(tokenIdentCompCI("beq"  ,ctx->token))encodeB(ctx,0x0063);
   else if(tokenIdentCompCI("bne"  ,ctx->token))encodeB(ctx,0x1063);
   else if(tokenIdentCompCI("blt"  ,ctx->token))encodeB(ctx,0x4063);
   else if(tokenIdentCompCI("bge"  ,ctx->token))encodeB(ctx,0x5063);
   else if(tokenIdentCompCI("bltu" ,ctx->token))encodeB(ctx,0x6063);
   else if(tokenIdentCompCI("bleu" ,ctx->token))encodeB(ctx,0x7063);
-  else if(tokenIdentCompCI("lb"   ,ctx->token))encodeI(ctx,0x0003);
-  else if(tokenIdentCompCI("lh"   ,ctx->token))encodeI(ctx,0x1003);
-  else if(tokenIdentCompCI("lw"   ,ctx->token))encodeI(ctx,0x2003);
-  else if(tokenIdentCompCI("lbu"  ,ctx->token))encodeI(ctx,0x4003);
-  else if(tokenIdentCompCI("lhu"  ,ctx->token))encodeI(ctx,0x5003);
+  else if(tokenIdentCompCI("lb"   ,ctx->token))encodeLoadJalr(ctx,0x0003);
+  else if(tokenIdentCompCI("lh"   ,ctx->token))encodeLoadJalr(ctx,0x1003);
+  else if(tokenIdentCompCI("lw"   ,ctx->token))encodeLoadJalr(ctx,0x2003);
+  else if(tokenIdentCompCI("lbu"  ,ctx->token))encodeLoadJalr(ctx,0x4003);
+  else if(tokenIdentCompCI("lhu"  ,ctx->token))encodeLoadJalr(ctx,0x5003);
   else if(tokenIdentCompCI("sb"   ,ctx->token))encodeStore(ctx,0x0023);
   else if(tokenIdentCompCI("sh"   ,ctx->token))encodeStore(ctx,0x1023);
   else if(tokenIdentCompCI("sw"   ,ctx->token))encodeStore(ctx,0x2023);
