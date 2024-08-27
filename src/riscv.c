@@ -190,67 +190,6 @@ fail:
   return false;
 }
 
-/* This Function parses the nameToken of a specific relocation.
- * Pattern: %type(name)
- */
-struct Token*parseRelocationPattern(CompContext*ctx,uint32_t type){
-  struct Token*backupToken = ctx->token;
-  if(ctx->token->type != Percent)
-    goto fail;
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
-  switch(type){
-    case R_RISCV_HI20:
-      if(!tokenIdentComp("hi",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_PCREL_HI20:
-      if(!tokenIdentComp("pcrel_hi",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_LO12_I:
-      if(!tokenIdentComp("lo",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_PCREL_LO12_I:
-      if(!tokenIdentComp("pcrel_lo",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_LO12_S:
-      if(!tokenIdentComp("lo",ctx->token))
-	goto fail;
-      break;
-    case R_RISCV_PCREL_LO12_S:
-      if(!tokenIdentComp("pcrel_lo",ctx->token))
-	goto fail;
-      break;
-    default:
-      goto fail;
-  }
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
-  if(ctx->token->type != BracketIn)
-    goto fail;
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
-  if(ctx->token->type != Identifier)
-    goto fail;
-  struct Token*nameToken = ctx->token;
-  if(!ctx->token->next)
-    goto fail;
-  ctx->token = ctx->token->next;
-  if(ctx->token->type != BracketOut)
-    goto fail;
-  ctx->token = ctx->token->next;
-  return nameToken;
-fail:
-  ctx->token = backupToken;
-  return NULL;
-}
-
 void encodeLui(CompContext*ctx){
   if(!ctx->token->next)
     compError("Unexpected EOF",ctx->token);
