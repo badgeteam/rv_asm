@@ -324,32 +324,6 @@ void encodeB(CompContext*ctx,uint32_t enc){
   compError("Symbol Name expected for relocation",ctx->token);
 }
 
-void encodeS(CompContext*ctx,uint32_t enc){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
-  enc += parseIntReg(ctx->token) << 15;
-  ctx->token = nextTokenEnforceColon(ctx->token);
-  enc += parseIntReg(ctx->token) << 20;
-  if(ctx->token->next && ctx->token->next->type != Newline){
-    ctx->token = nextTokenEnforceColon(ctx->token);
-    if(ctx->token->type == Number){
-      uint32_t imm = parseImm(ctx->token,12);
-      enc += (imm & 0x1F) << 7;
-      enc += (imm >> 5) << 25;
-      ctx->token = ctx->token->next;
-    }
-    else if(tryCompRelocation(ctx,R_RISCV_LO12_S));
-    else if(tryCompRelocation(ctx,R_RISCV_PCREL_LO12_S));
-    else
-     compError("The offset of an S encoding has to be a number, a \%lo(), a \%pcrel_lo() or nothing",ctx->token);
-  }else{
-    ctx->token = ctx->token->next;
-  }
-  insert4ByteCheckLineEnd(ctx,enc);
-}
-
-
 void encodeStore(CompContext*ctx,uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 20;	// rs2 
