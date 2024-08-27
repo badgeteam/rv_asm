@@ -327,6 +327,8 @@ char*tokenTypeName(struct Token*token){
     case Number:	return "Number";
     case Identifier:	return "Identifier";
     case Newline:	return "Newline";
+    case Plus:		return "Plus";
+    case Minus:		return "Minus";
     default:		return "";
   }
 }

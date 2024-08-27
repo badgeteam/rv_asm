@@ -1,6 +1,6 @@
 
 #include<elf.h>
-
+#include<stdlib.h>
 #include"export.h"
 
 

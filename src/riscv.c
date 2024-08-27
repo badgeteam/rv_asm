@@ -200,12 +200,16 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   nameToken = ctx->token;
   nextTokenEnforceExistence(ctx);
 
-  if(ctx->token->type == Comma){
-    // Modify Addend
-    nextTokenEnforceExistence(ctx);
-    if(ctx->token->type != Number)
-      goto fail;
+  if(ctx->token->type == Number){
     addend = parseInt(ctx->token);
+    nextTokenEnforceExistence(ctx);
+  }else if(ctx->token->type == Plus){
+    nextTokenEnforceExistence(ctx);
+    addend = parseInt(ctx->token);
+    nextTokenEnforceExistence(ctx);
+  }else if(ctx->token->type == Minus){
+    nextTokenEnforceExistence(ctx);
+    addend = - parseInt(ctx->token);
     nextTokenEnforceExistence(ctx);
   }
 
