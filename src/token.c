@@ -255,6 +255,21 @@ bool tokenIdentCompCI(char*str,struct Token*token){
   return *str=='\0';
 }
 
+bool tokenIdentCompPartialCI(char*str,struct Token*token,uint32_t offset){
+  if(token->type != Identifier)return false;
+  char c1, c2;
+  for(char*tokstr = token->buff + offset; tokstr < token->buffTop; tokstr++){
+    c1 = *str;
+    if(c1=='\0')return true;
+    c2 = *tokstr;
+    if('a'<=c1 && c1<='z') c1 -= 0x20;
+    if('a'<=c2 && c2<='z') c2 -= 0x20;  
+    if(c1!=c2)return false;
+    str++;
+  }
+  return *str=='\0';
+}
+
 uint32_t parseUInt(struct Token*token){
   if(token->type != Number) compError("Number Expected",token);
   char*cp = token->buff;

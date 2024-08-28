@@ -48,6 +48,12 @@ bool tokenIdentComp(char*str,struct Token*token);
 // Checks if the token is of type Ident and compares the strings while being case insensitive
 bool tokenIdentCompCI(char*str,struct Token*token);
 
+/* Case Insensitive
+ * Begins token string at offset
+ * token string does not have to be terminated
+ */
+bool tokenIdentCompPartialCI(char*str,struct Token*token, uint32_t offset);
+
 // Parses an unsigned Integer or throws an error
 uint32_t parseUInt(struct Token*token);
 

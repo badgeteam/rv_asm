@@ -299,9 +299,9 @@ void encodeB(CompContext*ctx,uint32_t enc){
   compError("Symbol Name or Number expected",ctx->token);
 }
 
-void encodeStore(CompContext*ctx,uint32_t enc){
+void encodeStore(CompContext*ctx,uint32_t enc,bool float_reg){
   nextTokenEnforceExistence(ctx);
-  enc += parseIntReg(ctx->token) << 20;	// rs2 
+  enc += float_reg ? parseFloatReg(ctx->token) : parseIntReg(ctx->token) << 20;	// rs2 
   nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number){
     uint32_t imm = parseImm(ctx->token,12);
@@ -316,9 +316,9 @@ void encodeStore(CompContext*ctx,uint32_t enc){
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
-void encodeLoadJalr(CompContext*ctx,uint32_t enc){
+void encodeLoadJalr(CompContext*ctx,uint32_t enc,bool float_reg){
   nextTokenEnforceExistence(ctx);
-  enc += parseIntReg(ctx->token) << 7;	// rd
+  enc += float_reg ? parseFloatReg(ctx->token) : parseIntReg(ctx->token) << 7;	// rd
   nextTokenEnforceComma(ctx);
   if(ctx->token->type == Number){
     enc += parseImm(ctx->token,12) << 20;
@@ -393,21 +393,21 @@ bool compRV32I(CompContext*ctx){
   if     (tokenIdentCompCI("lui"  ,ctx->token))encodeLui(ctx);
   else if(tokenIdentCompCI("auipc",ctx->token))encodeAuipc(ctx);
   else if(tokenIdentCompCI("jal"  ,ctx->token))encodeU(ctx,0x6F);
-  else if(tokenIdentCompCI("jalr" ,ctx->token))encodeLoadJalr(ctx,0x67);
+  else if(tokenIdentCompCI("jalr" ,ctx->token))encodeLoadJalr(ctx,0x67,false);
   else if(tokenIdentCompCI("beq"  ,ctx->token))encodeB(ctx,0x0063);
   else if(tokenIdentCompCI("bne"  ,ctx->token))encodeB(ctx,0x1063);
   else if(tokenIdentCompCI("blt"  ,ctx->token))encodeB(ctx,0x4063);
   else if(tokenIdentCompCI("bge"  ,ctx->token))encodeB(ctx,0x5063);
   else if(tokenIdentCompCI("bltu" ,ctx->token))encodeB(ctx,0x6063);
   else if(tokenIdentCompCI("bleu" ,ctx->token))encodeB(ctx,0x7063);
-  else if(tokenIdentCompCI("lb"   ,ctx->token))encodeLoadJalr(ctx,0x0003);
-  else if(tokenIdentCompCI("lh"   ,ctx->token))encodeLoadJalr(ctx,0x1003);
-  else if(tokenIdentCompCI("lw"   ,ctx->token))encodeLoadJalr(ctx,0x2003);
-  else if(tokenIdentCompCI("lbu"  ,ctx->token))encodeLoadJalr(ctx,0x4003);
-  else if(tokenIdentCompCI("lhu"  ,ctx->token))encodeLoadJalr(ctx,0x5003);
-  else if(tokenIdentCompCI("sb"   ,ctx->token))encodeStore(ctx,0x0023);
-  else if(tokenIdentCompCI("sh"   ,ctx->token))encodeStore(ctx,0x1023);
-  else if(tokenIdentCompCI("sw"   ,ctx->token))encodeStore(ctx,0x2023);
+  else if(tokenIdentCompCI("lb"   ,ctx->token))encodeLoadJalr(ctx,0x0003,false);
+  else if(tokenIdentCompCI("lh"   ,ctx->token))encodeLoadJalr(ctx,0x1003,false);
+  else if(tokenIdentCompCI("lw"   ,ctx->token))encodeLoadJalr(ctx,0x2003,false);
+  else if(tokenIdentCompCI("lbu"  ,ctx->token))encodeLoadJalr(ctx,0x4003,false);
+  else if(tokenIdentCompCI("lhu"  ,ctx->token))encodeLoadJalr(ctx,0x5003,false);
+  else if(tokenIdentCompCI("sb"   ,ctx->token))encodeStore(ctx,0x0023,false);
+  else if(tokenIdentCompCI("sh"   ,ctx->token))encodeStore(ctx,0x1023,false);
+  else if(tokenIdentCompCI("sw"   ,ctx->token))encodeStore(ctx,0x2023,false);
   else if(tokenIdentCompCI("addi" ,ctx->token))encodeI(ctx,0x0013);
   else if(tokenIdentCompCI("slti" ,ctx->token))encodeI(ctx,0x2013);
   else if(tokenIdentCompCI("sltiu",ctx->token))encodeI(ctx,0x3013);
@@ -449,7 +449,17 @@ bool compRV32M(CompContext*ctx){
   return true;
 }
 
-void encodeAtomic(CompContext*ctx,uint32_t enc,bool load){
+uint32_t parseAtomicAqRl(struct Token*token,uint32_t offset){
+  if(tokenIdentCompPartialCI("",token,offset))return 0;
+  if(tokenIdentCompPartialCI(".aq",token,offset))return 2;
+  if(tokenIdentCompPartialCI(".rl",token,offset))return 1;
+  if(tokenIdentCompPartialCI(".aq.rl",token,offset))return 3;
+  compError("Unknown Aq Rl Flag",token);
+  return 0;
+}
+
+void encodeAtomic(CompContext*ctx,uint32_t enc,bool load,uint32_t aqrl_offset){
+  enc += parseAtomicAqRl(ctx->token,aqrl_offset) << 25;
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
@@ -463,57 +473,91 @@ void encodeAtomic(CompContext*ctx,uint32_t enc,bool load){
 }
 
 bool compRV32A(CompContext*ctx){
-  if     (tokenIdentCompCI("lr.w",	     ctx->token))encodeAtomic(ctx,0x1000202F,true);
-  else if(tokenIdentCompCI("lr.w.aq",	     ctx->token))encodeAtomic(ctx,0x1200202F,true);
-  else if(tokenIdentCompCI("lr.w.rl",	     ctx->token))encodeAtomic(ctx,0x1400202F,true);
-  else if(tokenIdentCompCI("lr.w.aq.rl",     ctx->token))encodeAtomic(ctx,0x1600202F,true);
-  else if(tokenIdentCompCI("sc.w",           ctx->token))encodeAtomic(ctx,0x1800202F,false);
-  else if(tokenIdentCompCI("sc.w.aq",        ctx->token))encodeAtomic(ctx,0x1A00202F,false);
-  else if(tokenIdentCompCI("sc.w.rl",        ctx->token))encodeAtomic(ctx,0x1C00202F,false);
-  else if(tokenIdentCompCI("sc.w.aq.rl",     ctx->token))encodeAtomic(ctx,0x1E00202F,false);
-  else if(tokenIdentCompCI("amoswap.w",	     ctx->token))encodeAtomic(ctx,0x0800202F,false);
-  else if(tokenIdentCompCI("amoswap.w.aq",   ctx->token))encodeAtomic(ctx,0x0A00202F,false);
-  else if(tokenIdentCompCI("amoswap.w.rl",   ctx->token))encodeAtomic(ctx,0x0C00202F,false);
-  else if(tokenIdentCompCI("amoswap.w.aq.rl",ctx->token))encodeAtomic(ctx,0x0E00202F,false);
-  else if(tokenIdentCompCI("amoadd.w",       ctx->token))encodeAtomic(ctx,0x0000202F,false);
-  else if(tokenIdentCompCI("amoadd.w.aq",    ctx->token))encodeAtomic(ctx,0x0200202F,false);
-  else if(tokenIdentCompCI("amoadd.w.rl",    ctx->token))encodeAtomic(ctx,0x0400202F,false);
-  else if(tokenIdentCompCI("amoadd.w.aq.rl", ctx->token))encodeAtomic(ctx,0x0600202F,false);
-  else if(tokenIdentCompCI("amoxor.w",       ctx->token))encodeAtomic(ctx,0x2000202F,false);
-  else if(tokenIdentCompCI("amoxor.w.aq",    ctx->token))encodeAtomic(ctx,0x2200202F,false);
-  else if(tokenIdentCompCI("amoxor.w.rl",    ctx->token))encodeAtomic(ctx,0x2400202F,false);
-  else if(tokenIdentCompCI("amoxor.w.aq.rl", ctx->token))encodeAtomic(ctx,0x2600202F,false);
-  else if(tokenIdentCompCI("amoand.w",       ctx->token))encodeAtomic(ctx,0x6000202F,false);
-  else if(tokenIdentCompCI("amoand.w.aq",    ctx->token))encodeAtomic(ctx,0x6200202F,false);
-  else if(tokenIdentCompCI("amoand.w.rl",    ctx->token))encodeAtomic(ctx,0x6400202F,false);
-  else if(tokenIdentCompCI("amoand.w.aq.rl", ctx->token))encodeAtomic(ctx,0x6600202F,false);
-  else if(tokenIdentCompCI("amoor.w",        ctx->token))encodeAtomic(ctx,0x4000202F,false);
-  else if(tokenIdentCompCI("amoor.w.aq",     ctx->token))encodeAtomic(ctx,0x4200202F,false);
-  else if(tokenIdentCompCI("amoor.w.rl",     ctx->token))encodeAtomic(ctx,0x4400202F,false);
-  else if(tokenIdentCompCI("amoor.w.aq.rl",  ctx->token))encodeAtomic(ctx,0x4600202F,false);
-  else if(tokenIdentCompCI("amomin.w",       ctx->token))encodeAtomic(ctx,0x8000202F,false);
-  else if(tokenIdentCompCI("amomin.w.aq",    ctx->token))encodeAtomic(ctx,0x8200202F,false);
-  else if(tokenIdentCompCI("amomin.w.rl",    ctx->token))encodeAtomic(ctx,0x8400202F,false);
-  else if(tokenIdentCompCI("amomin.w.aq.rl", ctx->token))encodeAtomic(ctx,0x8600202F,false);
-  else if(tokenIdentCompCI("amomax.w",       ctx->token))encodeAtomic(ctx,0xA000202F,false);
-  else if(tokenIdentCompCI("amomax.w.aq",    ctx->token))encodeAtomic(ctx,0xA200202F,false);
-  else if(tokenIdentCompCI("amomax.w.rl",    ctx->token))encodeAtomic(ctx,0xA400202F,false);
-  else if(tokenIdentCompCI("amomax.w.aq.rl", ctx->token))encodeAtomic(ctx,0xA600202F,false);
-  else if(tokenIdentCompCI("amominu.w",      ctx->token))encodeAtomic(ctx,0xC000202F,false);
-  else if(tokenIdentCompCI("amominu.w.aq",   ctx->token))encodeAtomic(ctx,0xC200202F,false);
-  else if(tokenIdentCompCI("amominu.w.rl",   ctx->token))encodeAtomic(ctx,0xC400202F,false);
-  else if(tokenIdentCompCI("amominu.w.aq.rl",ctx->token))encodeAtomic(ctx,0xC600202F,false);
-  else if(tokenIdentCompCI("amomaxu.w",      ctx->token))encodeAtomic(ctx,0xE000202F,false);
-  else if(tokenIdentCompCI("amomaxu.w.aq",   ctx->token))encodeAtomic(ctx,0xE200202F,false);
-  else if(tokenIdentCompCI("amomaxu.w.rl",   ctx->token))encodeAtomic(ctx,0xE400202F,false);
-  else if(tokenIdentCompCI("amomaxu.w.aq.rl",ctx->token))encodeAtomic(ctx,0xE600202F,false);
+  if     (tokenIdentCompPartialCI("lr.w",	     ctx->token,0))encodeAtomic(ctx,0x1000202F,true,4);
+  else if(tokenIdentCompPartialCI("sc.w",           ctx->token,0))encodeAtomic(ctx,0x1800202F,false,4);
+  else if(tokenIdentCompPartialCI("amoswap.w",	     ctx->token,0))encodeAtomic(ctx,0x0800202F,false,9);
+  else if(tokenIdentCompPartialCI("amoadd.w",       ctx->token,0))encodeAtomic(ctx,0x0000202F,false,8);
+  else if(tokenIdentCompPartialCI("amoxor.w",       ctx->token,0))encodeAtomic(ctx,0x2000202F,false,8);
+  else if(tokenIdentCompPartialCI("amoand.w",       ctx->token,0))encodeAtomic(ctx,0x6000202F,false,8);
+  else if(tokenIdentCompPartialCI("amoor.w",        ctx->token,0))encodeAtomic(ctx,0x4000202F,false,7);
+  else if(tokenIdentCompPartialCI("amomin.w",       ctx->token,0))encodeAtomic(ctx,0x8000202F,false,8);
+  else if(tokenIdentCompPartialCI("amomax.w",       ctx->token,0))encodeAtomic(ctx,0xA000202F,false,8);
+  else if(tokenIdentCompPartialCI("amominu.w",      ctx->token,0))encodeAtomic(ctx,0xC000202F,false,9);
+  else if(tokenIdentCompPartialCI("amomaxu.w",      ctx->token,0))encodeAtomic(ctx,0xE000202F,false,9);
   else return false;
   return true;
 }
 
-bool compRV32F(CompContext*ctx){
+uint32_t parseFloatRM(struct Token*token,uint32_t offset){
+  if(tokenIdentCompPartialCI(".rne",token,offset))return 0;
+  if(tokenIdentCompPartialCI(".rtz",token,offset))return 1;
+  if(tokenIdentCompPartialCI(".rdn",token,offset))return 2;
+  if(tokenIdentCompPartialCI(".rup",token,offset))return 3;
+  if(tokenIdentCompPartialCI(".rmm",token,offset))return 4;
+  if(tokenIdentCompPartialCI(".dyn",token,offset))return 7;
+  if(tokenIdentCompPartialCI("",token,offset))return 7;
+  compError("Unknown Rounding Mode",token);
+  return 0;
+}
 
-  return false;
+void encodeFloat4Reg(CompContext*ctx,uint32_t enc, uint32_t rm_offset){
+  enc += parseFloatRM(ctx->token,rm_offset) << 12;
+  nextTokenEnforceExistence(ctx);
+  enc += parseFloatReg(ctx->token) << 7;
+  nextTokenEnforceComma(ctx);
+  enc += parseFloatReg(ctx->token) << 15;
+  nextTokenEnforceComma(ctx);
+  enc += parseFloatReg(ctx->token) << 20;
+  nextTokenEnforceComma(ctx);
+  enc += parseFloatReg(ctx->token) << 27;
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
+}
+
+void encodeFloatReg(CompContext*ctx,uint32_t enc, uint32_t rm_offset, bool rm, bool rs2){
+  if(rm)
+    enc += parseFloatRM(ctx->token,rm_offset) << 12;
+  nextTokenEnforceExistence(ctx);
+  enc += parseFloatReg(ctx->token) << 7;
+  nextTokenEnforceComma(ctx);
+  enc += parseFloatReg(ctx->token) << 15;
+  if(rs2){
+    nextTokenEnforceComma(ctx);
+    enc += parseFloatReg(ctx->token) << 20;
+  }
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
+}
+
+bool compRV32F(CompContext*ctx){
+  if     (tokenIdentCompCI("flw",ctx->token))encodeLoadJalr(ctx,0x2007,true);
+  else if(tokenIdentCompCI("fsw",ctx->token))encodeStore(ctx,0x2027,true);
+  else if(tokenIdentCompPartialCI("fmadd.s",ctx->token,0))encodeFloat4Reg(ctx,0x83,7);
+  else if(tokenIdentCompPartialCI("fmsub.s",ctx->token,0))encodeFloat4Reg(ctx,0x87,7);
+  else if(tokenIdentCompPartialCI("fnmsub.s",ctx->token,0))encodeFloat4Reg(ctx,0x8B,8);
+  else if(tokenIdentCompPartialCI("fnmadd.s",ctx->token,0))encodeFloat4Reg(ctx,0x8F,8);
+  else if(tokenIdentCompPartialCI("fadd.s",ctx->token,0))encodeFloatReg(ctx,0x00000053,6,true,true);
+  else if(tokenIdentCompPartialCI("fsub.s",ctx->token,0))encodeFloatReg(ctx,0x08000053,6,true,true);
+  else if(tokenIdentCompPartialCI("fmul.s",ctx->token,0))encodeFloatReg(ctx,0x10000053,6,true,true);
+  else if(tokenIdentCompPartialCI("fdiv.s",ctx->token,0))encodeFloatReg(ctx,0x18000053,6,true,true);
+  else if(tokenIdentCompPartialCI("fsqrt.s",ctx->token,0))encodeFloatReg(ctx,0x58000053,7,true,false);
+  else if(tokenIdentCompCI("fsgnj.s",ctx->token))encodeFloatReg(ctx,0x20000053,0,false,true);
+  else if(tokenIdentCompCI("fsgnjn.s",ctx->token))encodeFloatReg(ctx,0x20001053,0,false,true);
+  else if(tokenIdentCompCI("fsgnjx.s",ctx->token))encodeFloatReg(ctx,0x20002053,0,false,true);
+  else if(tokenIdentCompCI("fmin.s",ctx->token))encodeFloatReg(ctx,0x28000053,0,false,true);
+  else if(tokenIdentCompCI("fmax.s",ctx->token))encodeFloatReg(ctx,0x28001053,0,false,true);
+  else if(tokenIdentCompPartialCI("fcvt.w.s",ctx->token,0))encodeFloatReg(ctx,0xC0000053,8,true,false);
+  else if(tokenIdentCompPartialCI("fcvt.wu.s",ctx->token,0))encodeFloatReg(ctx,0xC0100053,9,true,false);
+  else if(tokenIdentCompCI("fmv.x.w",ctx->token))encodeFloatReg(ctx,0xE0000053,0,false,false);
+  else if(tokenIdentCompCI("feq.s",ctx->token))encodeFloatReg(ctx,0xA0002053,0,false,true);
+  else if(tokenIdentCompCI("flt.s",ctx->token))encodeFloatReg(ctx,0xA0001053,0,false,true);
+  else if(tokenIdentCompCI("fle.s",ctx->token))encodeFloatReg(ctx,0xA0000053,0,false,true);
+  else if(tokenIdentCompCI("fclass.s",ctx->token))encodeFloatReg(ctx,0xE0001053,0,false,false);
+  else if(tokenIdentCompPartialCI("fcvt.s.w",ctx->token,0))encodeFloatReg(ctx,0xD0000053,8,true,false);
+  else if(tokenIdentCompPartialCI("fcvt.s.wu",ctx->token,0))encodeFloatReg(ctx,0xD0100053,9,true,false);
+  else if(tokenIdentComp("fmv.w.x",ctx->token))encodeFloatReg(ctx,0xF0000053,0,false,false);
+  else return false;
+  return true;
 }
 
 bool compRV32C(CompContext*ctx){

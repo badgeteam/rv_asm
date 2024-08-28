@@ -2,30 +2,20 @@
 
 .text
 
-
-  sb a0, (t3)
-  sb a0, t3
-  sb a0, 0x12(t3)
-  sb a0, 0x12 t3
-  sb a0, %lo(symbol0 + 5)(t3)
-  sb a0, %lo(symbol0 + 5) t3
-  
-  lb a0, (t3)
-  lb a0, t3
-  lb a0, 0x12(t3)
-  lb a0, 0x12 t3
-  lb a0, %lo(symbol0  5)(t3)
-  lb a0, %lo(symbol0 - 5) t3
-
-  jalr a0, (t3)
-  jalr a0, t3
-  jalr a0, 0x12(t3)
-  jalr a0, 0x12 t3
-  jalr a0, %lo(symbol0  -5)(t3)
-  jalr a0, %lo(symbol0 + 5) t3
-
   csrrw a0, mie, a0
   csrrwi a0, mie, 5
+
+
+  flw fa0, 5(a1)
+  fadd.s.dyn fa1, fa2, fa3
+  fmadd.s.dyn fa1, fa2, fa3, fa4
+  fsqrt.s.dyn fa1, fa2
+
+  amoswap.w t1, t2, t3
+  amoxor.w.rl t1, t2, t3
+  lr.w.aq a0, a1
+
+
 symbol0:
 symbol1:
 
