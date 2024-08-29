@@ -16,6 +16,10 @@
   lr.w.aq a0, a1
 
 
+  c.or a0, a0
+  c.j %rvc_jump(symbol0)
+
+
 symbol0:
 symbol1:
 

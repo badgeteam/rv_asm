@@ -1,6 +1,8 @@
 
 #include"riscv.h"
 
+#include"riscv32c.h"
+
 // only used by parseIntReg and parseFloatReg
 uint32_t parseRegNum(struct Token*token,uint32_t offset){
   if(token->buffTop - token->buff <= offset){
@@ -189,7 +191,17 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   }else if(type == R_RISCV_PCREL_LO12_S){
     if(!tokenIdentComp("pcrel_lo",ctx->token))
       goto fail;
-  }else goto fail;
+  }else if(type == R_RISCV_RVC_LUI){
+    if(!tokenIdentComp("rvc_lui",ctx->token))
+      goto fail;
+  }else if(type == R_RISCV_RVC_JUMP){
+    if(!tokenIdentComp("rvc_jump",ctx->token))
+      goto fail;
+  }else if(type == R_RISCV_RVC_BRANCH){
+    if(!tokenIdentComp("rvc_branch",ctx->token))
+      goto fail;
+  }
+  else goto fail;
 
   nextTokenEnforceExistence(ctx);
   if(ctx->token->type != BracketIn)
@@ -254,7 +266,6 @@ void encodeAuipc(CompContext*ctx){
     compError("Number or \%pcrel_hi relocation expected",ctx->token);
 
   insert4ByteCheckLineEnd(ctx,enc);
-  return;
 }
 
 void encodeU(CompContext*ctx, uint32_t enc){
@@ -268,13 +279,12 @@ void encodeU(CompContext*ctx, uint32_t enc){
     enc += ((offset >> 12) & 0xFF) << 12;
     enc += ((offset >> 20) & 1) << 31;
   }
-  if(ctx->token->type == Identifier){
+  else if(ctx->token->type == Identifier){
     addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,ctx->token),R_RISCV_JAL,0); 
-    ctx->token = ctx->token->next;
-    insert4ByteCheckLineEnd(ctx,enc);
-    return;
   }
-  compError("Symbol Name or Number expected",ctx->token);
+  else compError("Symbol Name or Number expected",ctx->token);
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeB(CompContext*ctx,uint32_t enc){
@@ -290,13 +300,12 @@ void encodeB(CompContext*ctx,uint32_t enc){
     enc += ((offset >> 11) & 1) << 7;
     enc += ((offset >> 12) & 1) << 31;
   }
-  if(ctx->token->type == Identifier){
+  else if(ctx->token->type == Identifier){
     addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,ctx->token),R_RISCV_BRANCH,0);
-    ctx->token = ctx->token->next;
-    insert4ByteCheckLineEnd(ctx,enc);
-    return;
   }
-  compError("Symbol Name or Number expected",ctx->token);
+  else compError("Symbol Name or Number expected",ctx->token);
+  ctx->token = ctx->token->next;
+  insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeStore(CompContext*ctx,uint32_t enc,bool float_reg){
@@ -560,10 +569,6 @@ bool compRV32F(CompContext*ctx){
   return true;
 }
 
-bool compRV32C(CompContext*ctx){
-
-  return false;
-}
 
 uint32_t parseCsr(struct Token*token){
   // Unprivileged Floating Point CSRs
