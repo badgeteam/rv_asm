@@ -1,5 +1,5 @@
 
-#include"riscv32c.h"
+#include"riscv_c.h"
 #include"riscv.h"
 
 uint32_t parseRvcIntReg(struct Token*token){
@@ -45,7 +45,15 @@ uint32_t parseRvcFloatReg(struct Token*token){
 }
 
 uint32_t parseRvcBracketReg(CompContext*ctx){
-  return 0;
+  if(ctx->token->type == BracketIn){
+    nextTokenEnforceExistence(ctx);
+    uint32_t reg = parseRvcIntReg(ctx->token);
+    nextTokenEnforceExistence(ctx);
+    if(ctx->token->type != BracketOut)
+      compError(") Expected",ctx->token);
+    return reg;
+  }
+  return parseRvcIntReg(ctx->token);
 }
 
 void insert2ByteCheckLineEnd(CompContext*ctx, uint16_t enc){
@@ -55,8 +63,7 @@ void insert2ByteCheckLineEnd(CompContext*ctx, uint16_t enc){
   else{
     *((uint16_t*)(ctx->section->buff+ctx->section->index)) = enc;
     ctx->section->index += 2;
-  }
-  
+  } 
   if(!ctx->token)
     return;
   if(ctx->token->type != Newline)

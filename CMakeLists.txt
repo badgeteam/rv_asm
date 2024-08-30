@@ -14,7 +14,8 @@ add_executable(rvasm
     src/export.c
     src/token.c
     src/riscv.c
-    src/riscv32c.c
+    src/riscv_zicsr.c
+    src/riscv_c.c
 )
 
 target_include_directories(rvasm PRIVATE include)

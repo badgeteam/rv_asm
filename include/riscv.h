@@ -6,6 +6,8 @@ uint32_t parseIntReg(struct Token*token);
 uint32_t parseFloatReg(struct Token*token);
 uint32_t parseBracketReg(CompContext*ctx);
 
+void insert4ByteCheckLineEnd(CompContext*ctx, uint32_t enc);
+
 bool tryCompRelocation(CompContext*ctx,uint32_t type);
 
 void nextTokenEnforceExistence(CompContext*ctx);
