@@ -146,6 +146,7 @@ void encodeRvcClCs(CompContext*ctx, uint16_t enc, uint32_t imm_shift, bool float
 }
 
 void encodeRvcCj(CompContext*ctx, uint16_t enc){
+  Symbol*sym;
   nextTokenEnforceExistence(ctx);
 
   if(ctx->token->type == Number){
@@ -159,29 +160,20 @@ void encodeRvcCj(CompContext*ctx, uint16_t enc){
     enc += ((n>>8)&3)<<9;
     enc += ((n>>4)&1)<<11;
     enc += ((n>>11)&1)<<12;
-    ctx->token = ctx->token->next;
-    insert2ByteCheckLineEnd(ctx,enc);
-    return;
   }
 
-  else if(tryCompRelocation(ctx,R_RISCV_RVC_JUMP)){
-    insert2ByteCheckLineEnd(ctx,enc);
-    return;
-  }
+  else if(tryCompRelocation(ctx,R_RISCV_RVC_JUMP));
 
-  else if(ctx->token->type == Identifier){
-    Symbol*sym = getSymbol(ctx,ctx->token);
-    if(sym){
-      addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_JUMP,0);
-      ctx->token = ctx->token->next;
-      insert2ByteCheckLineEnd(ctx,enc);
-      return;
-    }
-  }
+  else if((sym = getSymbol(ctx, ctx->token)))
+    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_JUMP,0);
 
-  compError("Offset, Relocation or Symbol expected",ctx->token);
+  else compError("Offset, Relocation or Symbol expected",ctx->token);
+
+  ctx->token = ctx->token->next;
+  insert2ByteCheckLineEnd(ctx,enc);
 }
 
+// Jump Register
 void encodeRvcCrJump(CompContext*ctx,uint16_t enc){
   nextTokenEnforceExistence(ctx);
   uint32_t reg = parseIntReg(ctx->token);
@@ -192,6 +184,8 @@ void encodeRvcCrJump(CompContext*ctx,uint16_t enc){
 }
 
 void encodeRvcCb(CompContext*ctx,uint16_t enc){
+  Symbol*sym;
+
   nextTokenEnforceExistence(ctx);
   enc += parseRvcIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
@@ -204,27 +198,17 @@ void encodeRvcCb(CompContext*ctx,uint16_t enc){
     enc += ((n>>6)&3)<<5;
     enc += ((n>>3)&3)<<10;
     enc += ((n>>8)&1)<<12;
-    ctx->token = ctx->token->next;
-    insert2ByteCheckLineEnd(ctx,enc);
-    return;
   }
 
-  else if(tryCompRelocation(ctx,R_RISCV_RVC_BRANCH)){
-    insert2ByteCheckLineEnd(ctx,enc);
-    return;
-  }
+  else if(tryCompRelocation(ctx,R_RISCV_RVC_BRANCH));
 
-  else if(ctx->token->type == Identifier){
-    Symbol*sym = getSymbol(ctx,ctx->token);
-    if(sym){
-      addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_BRANCH,0);
-      ctx->token = ctx->token->next;
-      insert2ByteCheckLineEnd(ctx,enc);
-      return;
-    }
-  }
+  else if((sym = getSymbol(ctx,ctx->token)))
+    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_BRANCH,0);
   
-  compError("Offset, Relocation or Symbol expected",ctx->token);
+  else compError("Offset, Relocation or Symbol expected",ctx->token);
+
+  ctx->token = ctx->token->next;
+  insert2ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeRvcLi(CompContext*ctx){
@@ -243,6 +227,7 @@ void encodeRvcLi(CompContext*ctx){
 
 void encodeRvcLui(CompContext*ctx){
   uint16_t enc = 0x6001;
+  Symbol*sym;
   nextTokenEnforceExistence(ctx);
   uint32_t n = parseIntReg(ctx->token);
   if(n==0||n==2)compError("Register must not be 0 or 2",ctx->token);
@@ -254,27 +239,17 @@ void encodeRvcLui(CompContext*ctx){
     if(n==0)compError("Upper Immediate must not be 0",ctx->token);
     enc += (n&31)<<2;
     enc += ((n>>5)&1)<<12;
-    ctx->token = ctx->token->next;
-    insert2ByteCheckLineEnd(ctx,enc);
-    return;
   }
 
-  else if(tryCompRelocation(ctx,R_RISCV_RVC_LUI)){
-    insert2ByteCheckLineEnd(ctx,enc);
-    return;
-  }
+  else if(tryCompRelocation(ctx,R_RISCV_RVC_LUI));
 
-  else if(ctx->token->type == Identifier){
-    Symbol*sym = getSymbol(ctx,ctx->token);
-    if(sym){
-      addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_LUI,0);
-      ctx->token = ctx->token->next;
-      insert2ByteCheckLineEnd(ctx,enc);
-      return;
-    }
-  }
+  else if((sym = getSymbol(ctx,ctx->token)))
+    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_LUI,0);
 
-  compError("Offset, Relocation or Symbol expected",ctx->token);
+  else compError("Offset, Relocation or Symbol expected",ctx->token);
+
+  ctx->token = ctx->token->next;
+  insert2ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeRvcCi(CompContext*ctx,uint16_t enc, bool imm_zero){

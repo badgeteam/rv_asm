@@ -29,8 +29,10 @@
 
 ##### Lui - Load Upper Immediate
 ```
-Lui rd, <number>
-Lui rd, %hi( <symbol> )
+lui rd, number
+lui rd, %hi(symbol)
+lui rd, %hi(symbol + 4)
+lui rd, symbol
 ```
 ##### Auipc - Add Upper Immediate to Program Counter
 ```

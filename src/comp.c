@@ -101,6 +101,9 @@ void addRelaEntry(CompContext*ctx,uint32_t offset, Symbol*sym, uint32_t type, in
   }
 }
 
+
+
+
 void initSymbolList(CompContext*ctx){
   Symbol*sym = malloc(sizeof(Symbol));
   sym->name = "";
@@ -117,6 +120,7 @@ void initSymbolList(CompContext*ctx){
 }
 
 Symbol*getSymbol(CompContext*ctx, struct Token*nameToken){
+  if(nameToken->type != Identifier)return NULL;
   for(Symbol*sym = ctx->symbolHead; sym; sym=sym->next)
     if(tokenIdentComp(sym->name,nameToken))
       return sym;
