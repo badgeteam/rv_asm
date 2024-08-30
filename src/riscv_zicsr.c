@@ -418,7 +418,10 @@ void encodeCsrImmediate(CompContext*ctx,uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  enc += parseCsr(ctx->token) << 20;
+  if(ctx->token->type == Identifier)
+    enc += parseCsr(ctx->token) << 20;
+  else if(ctx->token->type == Number)
+    enc += parseUImm(ctx->token,12);
   nextTokenEnforceComma(ctx);
   enc += parseUImm(ctx->token,5) << 15;
   ctx->token = ctx->token->next;
