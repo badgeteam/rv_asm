@@ -137,19 +137,6 @@ fail:
   return 0;
 }
 
-void nextTokenEnforceExistence(CompContext*ctx){
-  if(!ctx->token->next)
-    compError("Unexpected EOF",ctx->token);
-  ctx->token = ctx->token->next;
-}
-
-void nextTokenEnforceComma(CompContext*ctx){
-  nextTokenEnforceExistence(ctx);
-  if(ctx->token->type != Comma)
-    compError("Comma Expected",ctx->token);
-  nextTokenEnforceExistence(ctx);
-}
-
 void insert4ByteCheckLineEnd(CompContext*ctx, uint32_t enc){
   if(ctx->pass == INDEX){
     ctx->section->size += 4;
@@ -163,87 +150,6 @@ void insert4ByteCheckLineEnd(CompContext*ctx, uint32_t enc){
     return;
   if(ctx->token->type != Newline)
     compError("Line Break or EOF expected after RiscV Instruction",ctx->token);
-}
-
-bool tryCompRelocation(CompContext*ctx,uint32_t type){
-  struct Token*backupToken = ctx->token;
-  struct Token*nameToken = NULL;
-  int32_t addend = 0;
-  if(ctx->token->type != Percent)
-    goto fail;
-  nextTokenEnforceExistence(ctx);
-
-  if(type == R_RISCV_HI20){
-    if(!tokenIdentComp("hi",ctx->token))
-      goto fail;
-  }else if(type == R_RISCV_LO12_I){
-    if(!tokenIdentComp("lo",ctx->token))
-      goto fail;
-  }else if(type == R_RISCV_LO12_S){
-    if(!tokenIdentComp("lo",ctx->token))
-      goto fail;
-  }
-  else if(type == R_RISCV_PCREL_HI20){
-    if(!tokenIdentComp("pcrel_hi",ctx->token))
-      goto fail;
-  }else if(type == R_RISCV_PCREL_LO12_I){
-    if(!tokenIdentComp("pcrel_lo",ctx->token))
-      goto fail;
-  }else if(type == R_RISCV_PCREL_LO12_S){
-    if(!tokenIdentComp("pcrel_lo",ctx->token))
-      goto fail;
-  }
-  else if(type == R_RISCV_JAL){
-    if(!tokenIdentComp("jal",ctx->token))
-      goto fail;
-  }else if(type == R_RISCV_BRANCH){
-    if(!tokenIdentComp("branch",ctx->token))
-      goto fail;
-  }
-  else if(type == R_RISCV_RVC_LUI){
-    if(!tokenIdentComp("rvc_lui",ctx->token))
-      goto fail;
-  }else if(type == R_RISCV_RVC_JUMP){
-    if(!tokenIdentComp("rvc_jump",ctx->token))
-      goto fail;
-  }else if(type == R_RISCV_RVC_BRANCH){
-    if(!tokenIdentComp("rvc_branch",ctx->token))
-      goto fail;
-  }
-  else goto fail;
-
-  nextTokenEnforceExistence(ctx);
-  if(ctx->token->type != BracketIn)
-    goto fail;
-  nextTokenEnforceExistence(ctx);
-  if(ctx->token->type != Identifier)
-    goto fail;
-  nameToken = ctx->token;
-  nextTokenEnforceExistence(ctx);
-
-  if(ctx->token->type == Number){
-    addend = parseInt(ctx->token);
-    nextTokenEnforceExistence(ctx);
-  }else if(ctx->token->type == Plus){
-    nextTokenEnforceExistence(ctx);
-    addend = parseInt(ctx->token);
-    nextTokenEnforceExistence(ctx);
-  }else if(ctx->token->type == Minus){
-    nextTokenEnforceExistence(ctx);
-    addend = - parseInt(ctx->token);
-    nextTokenEnforceExistence(ctx);
-  }
-
-  if(ctx->token->type != BracketOut)
-    goto fail;
-//  ctx->token = ctx->token->next;
-
-  // Apply Relocation
-  addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,nameToken),type,addend);
-  return true;
-fail:
-  ctx->token = backupToken;
-  return false;
 }
 
 

@@ -1,15 +1,32 @@
 #include"data.h"
 
-void compString(CompContext*ctx){
+bool nextTokenCheckConcat(CompContext*ctx){
+  ctx->token = ctx->token->next;
+  if(!ctx->token || ctx->token->type == Newline)
+    return false;
+
+  if(ctx->token->type == Comma){
+    nextTokenEnforceExistence(ctx);
+    return true;
+  }
+
+  compError("Comma, Newline or EOF expected",ctx->token);
+  return false;
+}
+
+
+void encodeAscii(CompContext*ctx, bool zero_terminated){
+  nextTokenEnforceExistence(ctx);
   char c;
-  for(char*cp = ctx->token->buff + 1; cp<ctx->token->buffTop - 1;cp++){
-    if(*cp == '\\'){
-      cp++;
-      if(ctx->pass == INDEX){
-	ctx->section->size ++;
-      }else if(ctx->pass == COMP){
-	c = *cp;
-	switch(c){
+  do {
+    if(ctx->token->type != String)
+      compError("String expected",ctx->token);
+
+    for(char*cp = ctx->token->buff + 1; cp < ctx->token->buffTop -1; cp++){
+      
+      if((c=*cp)=='\\'){
+	cp++;
+	switch(*cp){
 	  case'0':c = '\0';break;
 	  case'a':c = '\a';break;
 	  case'b':c = '\b';break;
@@ -21,89 +38,84 @@ void compString(CompContext*ctx){
 	  case'\\':c = '\\';break;
 	  case'"':c = '"';break;
 	}
-	ctx->section->buff[ctx->section->index] = c;
-	ctx->section->index ++;
       }
-    }else{
-      if(ctx->pass == INDEX){
-	ctx->section->size ++;
-      }else if(ctx->pass == COMP){
-	ctx->section->buff[ctx->section->index] = *cp;
-	ctx->section->index ++;
+
+      if(ctx->pass == INDEX)
+	ctx->section->size++;
+      else{
+	ctx->section->buff[ctx->section->index] = c;
+	ctx->section->index++;
+      }
+
+    }
+    
+    if(zero_terminated){
+      if(ctx->pass == INDEX)
+	ctx->section->size++;
+      else{
+	ctx->section->buff[ctx->section->index] = '\0';
+	ctx->section->index++;
       }
     }
+
   }
+  while(nextTokenCheckConcat(ctx));
+}
+
+void encodeZeros(CompContext*ctx){
+  nextTokenEnforceExistence(ctx);
+
+  if(ctx->token->type != Number)
+    compError("Number expected after .zero directive",ctx->token);
+
+  if(ctx->pass == INDEX)
+    ctx->section->size += parseUInt(ctx->token);
+  else{
+    uint32_t zeros = parseUInt(ctx->token);
+    for(uint32_t i = 0;i<zeros;i++){
+      ctx->section->buff[ctx->section->index] = 0;
+      ctx->section->index ++;
+    }
+  }
+
   ctx->token = ctx->token->next;
 }
 
+void encodeByte(CompContext*ctx){
+  nextTokenEnforceExistence(ctx);
+
+  do{
+    if(ctx->pass == INDEX)
+      ctx->section->size ++;
+    else{
+      if(ctx->token->type == Number){
+	ctx->section->buff[ctx->section->index] = parseUImm(ctx->token,8);
+      }else if(ctx->token->type == Char){
+	ctx->section->buff[ctx->section->index] = parseChar(ctx->token->buff + 1);
+      }
+      else compError("Number or Char expected",ctx->token);
+      ctx->section->index++;
+    }
+  }
+  while(nextTokenCheckConcat(ctx));
+}
 
 bool compData(CompContext*ctx){
-  if(tokenIdentComp(".ascii",ctx->token)){
-    ctx->token = ctx->token->next;
-    while(ctx->token && ctx->token->type & String){
-      compString(ctx);
-    }
-    return true;
-  }
+  if(tokenIdentComp(".ascii",ctx->token))
+    encodeAscii(ctx,false);
 
-  if(tokenIdentComp(".string",ctx->token)){
-    ctx->token = ctx->token->next;
-    while(ctx->token && ctx->token->type & String){
-      compString(ctx);
-    }
-      if(ctx->pass == INDEX)
-	ctx->section->size ++;
-      else if(ctx->pass == COMP){
-	ctx->section->buff[ctx->section->index] = '\0';
-	ctx->section->index ++;
-      }
-    return true;
-  }
+  else if(tokenIdentComp(".string",ctx->token))
+    encodeAscii(ctx,true);
 
-  if(tokenIdentComp(".zero",ctx->token)){
-    if(!ctx->token->next)
-      compError("Unexpected EOF",ctx->token);
-    ctx->token = ctx->token->next;
-    if(ctx->token->type != Number)
-      compError("Number Expected after .zero",ctx->token);
-    if(ctx->pass == INDEX)
-      ctx->section->size += parseUInt(ctx->token);
-    else if(ctx->pass == COMP){
-      uint32_t number_of_zeros = parseUInt(ctx->token);
-      for(uint32_t i = 0;i<number_of_zeros;i++){
-	ctx->section->buff[ctx->section->index] = 0;
-	ctx->section->index++;
-      }
-    }
-    ctx->token = ctx->token->next;
-    return true;
-  }
+  else if(tokenIdentComp(".zero",ctx->token))
+    encodeZeros(ctx);
 
-  if(tokenIdentComp(".byte",ctx->token)){
-    if(!ctx->token->next)
-      compError("Unexpecdet EOF",ctx->token);
-    ctx->token = ctx->token->next;
-    while(ctx->token && ctx->token->type & Number | Char){
-      if(ctx->pass == INDEX)
-	ctx->section->size ++;
-      else if(ctx->pass == COMP){
-	if(ctx->token->type == Number){
-	  ctx->section->buff[ctx->section->index] = (uint8_t)parseUImm(ctx->token,8);
-	}else if(ctx->token->type == Char){
-	  ctx->section->buff[ctx->section->index] = (uint8_t)parseChar(ctx->token->buff+1);
-	}
-	ctx->section->index++;
-     }
-      ctx->token = ctx->token->next;
-      if(!ctx->token)
-	return true;
-      if(! (ctx->token->type & Comma||Newline) )
-	compError("Colon or Newline expected after byte in .byte",ctx->token);
-      ctx->token = ctx->token->next;
-    }
-  }
+  else if(tokenIdentComp(".byte",ctx->token))
+    encodeByte(ctx);
 
-  return false;
+  else return false;
+  return true;
+
 }
 
 

@@ -25,3 +25,9 @@ symbol1:
 
 .data
 
+.ascii "test","test2"
+.string "teest","test2"
+.zero 50
+.byte '3', '\\', 0x30
+
+

@@ -71,7 +71,13 @@ typedef struct CompContext{
 
 }CompContext;
 
+void nextTokenEnforceExistence(CompContext*ctx);
+void nextTokenEnforceComma(CompContext*ctx);
+
+
 void addRelaEntry(CompContext*ctx,uint32_t offset, Symbol*sym, uint32_t type, int32_t addend);
+bool tryCompRelocation(CompContext*ctx, uint32_t type);
+
 
 Symbol*getSymbol(CompContext*ctx,struct Token*nameToken);
 
