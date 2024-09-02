@@ -1,3 +1,4 @@
+#include<stdlib.h>
 
 #include"token.h"
 #include"util.h"

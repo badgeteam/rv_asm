@@ -1,6 +1,7 @@
 
 #include<string.h>
 #include<elf.h>
+#include<stdlib.h>
 
 #include"comp.h"
 #include"util.h"
@@ -332,6 +333,24 @@ void compPass(CompContext*ctx){
       continue;
     }
 
+
+    if(tokenIdentComp(".equ",ctx->token)){
+      
+    }
+
+    if(tokenIdentComp(".align",ctx->token)){
+      nextTokenEnforceExistence(ctx);
+      if(ctx->pass==INDEX){
+	ctx->section->size = align(ctx->section->size, parseUImm(ctx->token, 5));
+      }else{
+	uint32_t align_mask = (1 << parseUImm(ctx->token, 5)) -1;
+	while(ctx->section->index & align_mask){
+	  ctx->section->buff[ctx->section->index] = 0;
+	  ctx->section->index ++;
+	}
+      }
+      ctx->token = ctx->token->next;
+    }
 
     // Data
     if(ctx->section->mode & DATA)

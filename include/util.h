@@ -1,8 +1,7 @@
 #include<stdint.h>
 #include<stdbool.h>
-#include<stdlib.h>
 
-
+uint32_t align(uint32_t n, uint32_t b);
 
 bool isHexChar(char c);
 bool isIdentChar(char c);

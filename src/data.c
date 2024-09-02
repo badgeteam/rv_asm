@@ -100,6 +100,63 @@ void encodeByte(CompContext*ctx){
   while(nextTokenCheckConcat(ctx));
 }
 
+void encodeBytes(CompContext*ctx,uint32_t size,bool flag_align){
+  nextTokenEnforceExistence(ctx);
+
+  if(flag_align){
+    if(ctx->pass == INDEX)
+      ctx->section->size = align(ctx->section->size, size);
+    else{
+      uint32_t align_mask = (1<<size)-1;
+      while(ctx->section->index & align_mask){
+	ctx->section->buff[ctx->section->index] = 0;
+	ctx->section->index++;
+      }
+    }
+  }
+
+  do{
+    if(ctx->token->type != Number)
+      compError("Number expected",ctx->token);
+    if(ctx->pass == INDEX){
+      ctx->section->size += size;
+    }
+    else{
+      //TODO
+      if(size==2){}
+      else if(size==4){}
+      ctx->section->index += size;
+    }
+  }
+  while(nextTokenCheckConcat(ctx));
+}
+
+void encodeIncbin(CompContext*ctx){
+  nextTokenEnforceExistence(ctx);
+  if(ctx->token->type != String)
+    compError("String expected",ctx->token);
+
+  *(ctx->token->buffTop - 1) = '\0';
+  FILE*fp = fopen(ctx->token->buff+1,"rb");
+  *(ctx->token->buffTop - 1) = '"';
+
+  if(!fp)compError("Unable to open File",ctx->token);
+
+  fseek(fp,0L,SEEK_END);
+  uint32_t filesize = ftell(fp);
+  fseek(fp,0L,SEEK_SET);
+
+  if(ctx->pass == INDEX){
+    ctx->section->size += filesize;
+  }else{
+    fread(ctx->section->buff + ctx->section->index, 1, filesize, fp);
+    ctx->section->index += filesize;
+  }
+  
+  fclose(fp);
+  ctx->token = ctx->token->next;
+}
+
 bool compData(CompContext*ctx){
   if(tokenIdentComp(".ascii",ctx->token))
     encodeAscii(ctx,false);
@@ -112,6 +169,21 @@ bool compData(CompContext*ctx){
 
   else if(tokenIdentComp(".byte",ctx->token))
     encodeByte(ctx);
+
+  else if(tokenIdentComp(".2byte",ctx->token))
+    encodeBytes(ctx,2,false);
+
+  else if(tokenIdentComp(".4byte",ctx->token))
+    encodeBytes(ctx,4,false);
+
+  else if(tokenIdentComp(".half",ctx->token))
+    encodeBytes(ctx,2,true);
+
+  else if(tokenIdentComp(".word",ctx->token))
+    encodeBytes(ctx,4,true);
+
+  else if(tokenIdentComp(".incbin",ctx->token))
+    encodeIncbin(ctx);
 
   else return false;
   return true;

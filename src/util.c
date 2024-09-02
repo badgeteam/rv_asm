@@ -1,6 +1,12 @@
 
+#include<stdlib.h>
+
 #include"token.h"
 #include"util.h"
+
+uint32_t align(uint32_t n, uint32_t b){
+  return n;
+}
 
 bool isHexChar(char c){
   switch(c){
