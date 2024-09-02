@@ -4,6 +4,10 @@
 #include"riscv_zicsr.h"
 #include"riscv_c.h"
 
+#include"token.h"
+#include"relocation.h"
+#include"symbol.h"
+
 // only used by parseIntReg and parseFloatReg
 uint32_t parseRegNum(struct Token*token,uint32_t offset){
   if(token->buffTop - token->buff <= offset){

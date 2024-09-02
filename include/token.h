@@ -1,75 +1,52 @@
 #pragma once
 
-#include<stdint.h>
-#include<stdio.h>
-#include<stdbool.h>
-#include<sys/syscall.h>
-#include<unistd.h>
-#include<fcntl.h>
-
-struct File{
-	char*buff,*filename;
-	size_t size;
-	struct File*next;
-};
-
-enum TokType{
-  Comma		= 0x00000001,
-  Doubledot	= 0x00000002,
-  BracketIn	= 0x00000004,
-  BracketOut	= 0x00000008,
-  Char		= 0x00000010,
-  String	= 0x00000020,
-  Number	= 0x00000040,
-  Identifier	= 0x00000080,
-  Newline	= 0x00000100,
-  Percent	= 0x00000200,
-  Plus		= 0x00000400,
-  Minus		= 0x00000800,
-};
-
-struct Token{
-	char*buff;
-	char*buffTop;
-	struct Token*next;
-	struct Token*prev;
-	enum TokType type;
-	struct File*file;
-	int line;
-};
+#include"common_types.h"
 
 
 // Reads files recursively and creates a Tokenchain
-struct Token*tokenizeFile(char*filename);
+Token*tokenizeFile(char*filename);
 
 // Checks if the token is of type Ident and compares the strings
-bool tokenIdentComp(char*str,struct Token*token);
+bool tokenIdentComp(char*str, Token*token);
 
 // Checks if the token is of type Ident and compares the strings while being case insensitive
-bool tokenIdentCompCI(char*str,struct Token*token);
+bool tokenIdentCompCI(char*str, Token*token);
 
 /* Case Insensitive
  * Begins token string at offset
  * token string does not have to be terminated
  */
-bool tokenIdentCompPartialCI(char*str,struct Token*token, uint32_t offset);
+bool tokenIdentCompPartialCI(char*str, Token*token, uint32_t offset);
 
 // Parses an unsigned Integer or throws an error
-uint32_t parseUInt(struct Token*token);
+uint32_t parseUInt(Token*token);
 
 // Parses a signed Integer or throws an error
-int32_t parseInt(struct Token*token);
+int32_t parseInt(Token*token);
 
 // Parses an unsigned Immediate Number of a specific length or throws an error
-uint32_t parseUImm(struct Token*token, uint32_t length);
+uint32_t parseUImm(Token*token, uint32_t length);
 
 // Parses a signed Immediate Number of a specific length or throws an error
-uint32_t parseImm(struct Token*teken, uint32_t length);
+uint32_t parseImm(Token*teken, uint32_t length);
 
-char*copyTokenContent(struct Token*token);
+
+
+void nextTokenEnforceExistence(CompContext*ctx);
+void nextTokenEnforceComma(CompContext*ctx);
+bool nextTokenCheckConcat(CompContext*ctx);
+
+
+
+char*copyTokenContent(Token*token);
 
 // Returns the name of the token. For Debug purposes
-char*tokenTypeName(struct Token*token);
+char*tokenTypeName(Token*token);
 
-void printToken(struct Token*token);
-void printTokenList(struct Token*token);
+void printToken(Token*token);
+void printTokenList(Token*token);
+
+
+void compWarning(char*msg, Token*token);
+void compError(char*msg, Token*token);
+

@@ -1,8 +1,12 @@
 #include<stdlib.h>
+#include<stdio.h>
+#include<sys/syscall.h>
+#include<unistd.h>
+#include<fcntl.h>
+#include<string.h>
 
 #include"token.h"
 #include"util.h"
-#include<string.h>
 
 void openFileError(char*filename){
   fprintf(stderr,"Error: Unable to open File %s\n",filename);
@@ -12,17 +16,17 @@ void duplicateFileError(char*filename){
   fprintf(stderr,"Error: Recursively including File %s\n",filename);
   exit(-1);
 }
-void tokenizeError(char*msg, struct File*file, uint32_t line){
+void tokenizeError(char*msg, File*file, uint32_t line){
   fprintf(stderr,"Error: Unable to create token in File %s Line %d\n%s\n",file->filename,line,msg);
   exit(-1);
 }
 /* head element of File list */
-struct File*files = NULL;
+File*files = NULL;
 
 /* This function reads the content of a file into a struct File*
  * @param filename Has to be zero terminated and should not be deallocated.
  */
-struct File*openFile(char*filename){
+File*openFile(char*filename){
   // Look for duplicate File
   for(struct File*f = files;f;f=f->next)
     if(strcmp(filename,f->filename)==0)
@@ -30,7 +34,7 @@ struct File*openFile(char*filename){
   // Create File object and read file into memory
   FILE*fp = fopen(filename,"r");
   if(!fp)openFileError(filename);
-  struct File*file = malloc(sizeof(struct File));
+  File*file = malloc(sizeof(File));
   file->filename = filename;
   fseek(fp,0L,SEEK_END);
   file->size = ftell(fp);
@@ -44,18 +48,18 @@ struct File*openFile(char*filename){
   return file;
 }
 
-struct Token*tokenizeFile(char*filename){
-  struct File*file = openFile(filename);
+Token*tokenizeFile(char*filename){
+  File*file = openFile(filename);
   char*buff = file->buff;
   size_t size = file->size;
 
-  struct Token*head = NULL,*current=NULL,*last = NULL;
+  Token*head = NULL,*current=NULL,*last = NULL;
 
   uint32_t line = 1;
   size_t index = 0;
   char c;
   char*cp;
-  enum TokType type;
+  TokType type;
 
 
   while(index<size){
@@ -209,7 +213,7 @@ struct Token*tokenizeFile(char*filename){
     }
     
 
-    current = malloc(sizeof(struct Token));
+    current = malloc(sizeof(Token));
     if(last)
       last->next = current;
     else
@@ -227,7 +231,7 @@ struct Token*tokenizeFile(char*filename){
 }
 
 
-bool tokenIdentComp(char*str,struct Token*token){
+bool tokenIdentComp(char*str,Token*token){
   if(token->type != Identifier)return false;
   char c1, c2;
   for(char*tokstr = token->buff; tokstr<token->buffTop; tokstr++){
@@ -241,7 +245,7 @@ bool tokenIdentComp(char*str,struct Token*token){
   return *str=='\0';
 }
 
-bool tokenIdentCompCI(char*str,struct Token*token){
+bool tokenIdentCompCI(char*str,Token*token){
   if(token->type != Identifier)return false;
   char c1, c2;
   for(char*tokstr = token->buff; tokstr<token->buffTop; tokstr++){
@@ -256,7 +260,7 @@ bool tokenIdentCompCI(char*str,struct Token*token){
   return *str=='\0';
 }
 
-bool tokenIdentCompPartialCI(char*str,struct Token*token,uint32_t offset){
+bool tokenIdentCompPartialCI(char*str, Token*token,uint32_t offset){
   if(token->type != Identifier)return false;
   char c1, c2;
   for(char*tokstr = token->buff + offset; tokstr < token->buffTop; tokstr++){
@@ -271,7 +275,7 @@ bool tokenIdentCompPartialCI(char*str,struct Token*token,uint32_t offset){
   return *str=='\0';
 }
 
-uint32_t parseUInt(struct Token*token){
+uint32_t parseUInt(Token*token){
   if(token->type != Number) compError("Number Expected",token);
   char*cp = token->buff;
   uint32_t n = 0;
@@ -291,7 +295,7 @@ uint32_t parseUInt(struct Token*token){
   return n;
 }
 
-int32_t parseInt(struct Token*token){
+int32_t parseInt(Token*token){
   if(token->type != Number) compError("Number Expected",token);
   char*cp = token->buff;
   int32_t n = 0;
@@ -317,7 +321,7 @@ int32_t parseInt(struct Token*token){
 
 /* This Function parses an unsigned bitfield
  */
-uint32_t parseUImm(struct Token*token,uint32_t length){
+uint32_t parseUImm(Token*token,uint32_t length){
   uint32_t n = parseUInt(token);
   if( (n>>length) != 0 ) compError("UImm out of range",token);
   return n;
@@ -326,14 +330,46 @@ uint32_t parseUImm(struct Token*token,uint32_t length){
 /* This Function parses a signed bitfield
  * @param length must be >= 1
  */
-uint32_t parseImm(struct Token*token,uint32_t length){
+uint32_t parseImm(Token*token,uint32_t length){
   int32_t z = parseInt(token);
   uint32_t pos = z>=0 ? z: -z;
   if((pos >> (length-1) != 0)) compError("Imm out of range",token);
   return z & ((1<<length)-1);
 }
 
-char*copyTokenContent(struct Token*token){
+
+
+void nextTokenEnforceExistence(CompContext*ctx){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+  ctx->token = ctx->token->next;
+}
+
+void nextTokenEnforceComma(CompContext*ctx){
+  nextTokenEnforceExistence(ctx);
+  if(ctx->token->type != Comma)
+    compError("Comma Expected",ctx->token);
+  nextTokenEnforceExistence(ctx);
+}
+
+bool nextTokenCheckConcat(CompContext*ctx){
+  ctx->token = ctx->token->next;
+  if(!ctx->token || ctx->token->type == Newline)
+    return false;
+
+  if(ctx->token->type == Comma){
+    nextTokenEnforceExistence(ctx);
+    return true;
+  }
+
+  compError("Comma, Newline or EOF expected",ctx->token);
+  return false;
+}
+
+
+
+
+char*copyTokenContent(Token*token){
   char*str = malloc(token->buffTop - token->buff + 1);
   uint32_t index = 0;
   for(char*cp = token->buff; cp<token->buffTop; cp++){
@@ -344,7 +380,7 @@ char*copyTokenContent(struct Token*token){
   return str;
 }
 
-char*tokenTypeName(struct Token*token){
+char*tokenTypeName(Token*token){
   switch(token->type){
     case Comma: 	return "Comma";
     case Doubledot:	return "Doubledot";
@@ -361,7 +397,7 @@ char*tokenTypeName(struct Token*token){
   }
 }
 
-void printToken(struct Token*token){
+void printToken(Token*token){
   printf("Token Type=%s\tAddress=0x%lx\tSize=0x%lx\tFile=%s\tLine=%d\tContent=",
     tokenTypeName(token),
     (size_t)token->buff,
@@ -374,9 +410,36 @@ void printToken(struct Token*token){
   printf("\n");
 }
 
-void printTokenList(struct Token*token){
+void printTokenList(Token*token){
   while(token){
     printToken(token);
     token=token->next;
   }
 }
+
+
+
+void compWarning(char*msg,struct Token*token){
+	fprintf(stderr,"Comp Warning in file %s line %d.\n",token->file->filename,token->line);
+	while(token->prev!=NULL && token->prev->type != Newline)token=token->prev;
+	for(char*cp = token->buff; cp<(token->file->buff+token->file->size) && *cp!='\n'; cp++)
+		fprintf(stderr,"%c",*cp);
+	fprintf(stderr,"\n%s\n",msg);
+}
+
+void compError(char*msg,struct Token*token){
+	fprintf(stderr,"Comp Error in file %s line %d.\n",token->file->filename,token->line);
+	
+	for(char*cp = token->buff; cp<token->buffTop; cp++)
+		fprintf(stderr,"%c",*cp);
+	fprintf(stderr,"\n");
+
+	while(token->prev!=NULL && token->prev->type != Newline)token=token->prev;
+	for(char*cp = token->buff; cp<(token->file->buff+token->file->size) && *cp!='\n'; cp++)
+		fprintf(stderr,"%c",*cp);
+	fprintf(stderr,"\n%s\n",msg);
+	exit(-1);
+}
+
+
+

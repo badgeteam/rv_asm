@@ -2,6 +2,10 @@
 #include"riscv_c.h"
 #include"riscv.h"
 
+#include"token.h"
+#include"relocation.h"
+#include"symbol.h"
+
 uint32_t parseRvcIntReg(struct Token*token){
   if(tokenIdentCompCI("x8",token))return 0;
   if(tokenIdentCompCI("x9",token))return 1;

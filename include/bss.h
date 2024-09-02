@@ -1,5 +1,4 @@
 #pragma once
-#include"comp.h"
-#include"util.h"
+#include"common_types.h"
 
 bool compBSS(CompContext*ctx);

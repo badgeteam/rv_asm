@@ -1,3 +1,5 @@
+#pragma once
+
 #include<stdint.h>
 #include<stdbool.h>
 
@@ -10,7 +12,4 @@ char parseChar(char*cp);
 
 bool StrCmpBegin(char*str,char*buff,char*buffTop);
 bool StrCmp(char*str,char*buff,char*buffTop);
-
-void compWarning(char*msg, struct Token*token);
-void compError(char*msg, struct Token*token);
 

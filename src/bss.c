@@ -1,5 +1,6 @@
 
 #include"bss.h"
+#include"token.h"
 
 bool compBSS(CompContext*ctx){
 

@@ -1,5 +1,6 @@
 #include"riscv_zicsr.h"
 #include"riscv.h"
+#include"token.h"
 
 uint32_t parseCsr(struct Token*token){
   // Unprivileged Floating Point CSRs

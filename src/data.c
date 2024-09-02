@@ -1,19 +1,9 @@
+
 #include"data.h"
+#include"token.h"
+#include"util.h"
 
-bool nextTokenCheckConcat(CompContext*ctx){
-  ctx->token = ctx->token->next;
-  if(!ctx->token || ctx->token->type == Newline)
-    return false;
-
-  if(ctx->token->type == Comma){
-    nextTokenEnforceExistence(ctx);
-    return true;
-  }
-
-  compError("Comma, Newline or EOF expected",ctx->token);
-  return false;
-}
-
+#include<stdio.h>
 
 void encodeAscii(CompContext*ctx, bool zero_terminated){
   nextTokenEnforceExistence(ctx);

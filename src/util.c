@@ -1,8 +1,5 @@
-
-#include<stdlib.h>
-
-#include"token.h"
 #include"util.h"
+
 
 uint32_t align(uint32_t n, uint32_t b){
   return n;
@@ -80,24 +77,3 @@ bool StrCmp(char*str,char*buff,char*buffTop){
 	}
 }
 
-void compWarning(char*msg,struct Token*token){
-	fprintf(stderr,"Comp Warning in file %s line %d.\n",token->file->filename,token->line);
-	while(token->prev!=NULL && token->prev->type != Newline)token=token->prev;
-	for(char*cp = token->buff; cp<(token->file->buff+token->file->size) && *cp!='\n'; cp++)
-		fprintf(stderr,"%c",*cp);
-	fprintf(stderr,"\n%s\n",msg);
-}
-
-void compError(char*msg,struct Token*token){
-	fprintf(stderr,"Comp Error in file %s line %d.\n",token->file->filename,token->line);
-	
-	for(char*cp = token->buff; cp<token->buffTop; cp++)
-		fprintf(stderr,"%c",*cp);
-	fprintf(stderr,"\n");
-
-	while(token->prev!=NULL && token->prev->type != Newline)token=token->prev;
-	for(char*cp = token->buff; cp<(token->file->buff+token->file->size) && *cp!='\n'; cp++)
-		fprintf(stderr,"%c",*cp);
-	fprintf(stderr,"\n%s\n",msg);
-	exit(-1);
-}
