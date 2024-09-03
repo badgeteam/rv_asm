@@ -75,10 +75,17 @@ typedef struct Symbol{
   uint32_t shndx;
 }Symbol;
 
+typedef struct Constant{
+  Token*nameToken,*valueToken;
+  struct Constant*next;
+}Constant;
+
 typedef struct CompContext{
   struct Token*tokenHead;
   struct Token*token;
   enum Pass pass;
+
+  Constant*constantHead;
 
   Symbol*symbolHead,*symbolTail;
 

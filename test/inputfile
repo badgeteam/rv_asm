@@ -1,33 +1,22 @@
 
 
-.text
-
-  csrrw a0, mie, a0
-  csrrwi a0, mie, 5
-
-
-  flw fa0, 5(a1)
-  fadd.s.dyn fa1, fa2, fa3
-  fmadd.s.dyn fa1, fa2, fa3, fa4
-  fsqrt.s.dyn fa1, fa2
-
-  amoswap.w t1, t2, t3
-  amoxor.w.rl t1, t2, t3
-  lr.w.aq a0, a1
-
-
-  c.or a0, a0
-  c.j %rvc_jump(symbol0)
-
-
-symbol0:
-symbol1:
-
 .data
 
-.ascii "test","test2"
-.string "teest","test2"
-.zero 50
-.byte '3', '\\', 0x30
+.equ constant, 0x20
+
+#.byte constant, constant, '2', 0x20
+#.zero constant
+
+#.zero 1
+#.align 4
+#.2byte constant, 0x2020
+
+#.zero 1
+#.word constant, constant, 0x12341234, -5
+
+#.incbin "incbinfile"
+
+.ascii "test", "test"
+.string "test", "test\n\0"
 
 

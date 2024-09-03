@@ -2,7 +2,7 @@
 #include"data.h"
 #include"token.h"
 #include"util.h"
-
+#include"constants.h"
 #include<stdio.h>
 
 void encodeAscii(CompContext*ctx, bool zero_terminated){
@@ -55,14 +55,15 @@ void encodeAscii(CompContext*ctx, bool zero_terminated){
 void encodeZeros(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
 
-  if(ctx->token->type != Number)
-    compError("Number expected after .zero directive",ctx->token);
+  Token*valTok = getNumberOrConstant(ctx);
+  if(!valTok)
+    compError("Number or existing Constant expected",ctx->token);
+  uint32_t size = parseUInt(valTok);
 
   if(ctx->pass == INDEX)
-    ctx->section->size += parseUInt(ctx->token);
+    ctx->section->size += size;
   else{
-    uint32_t zeros = parseUInt(ctx->token);
-    for(uint32_t i = 0;i<zeros;i++){
+    for(uint32_t i = 0;i<size;i++){
       ctx->section->buff[ctx->section->index] = 0;
       ctx->section->index ++;
     }
@@ -78,26 +79,26 @@ void encodeByte(CompContext*ctx){
     if(ctx->pass == INDEX)
       ctx->section->size ++;
     else{
-      if(ctx->token->type == Number){
-	ctx->section->buff[ctx->section->index] = parseUImm(ctx->token,8);
-      }else if(ctx->token->type == Char){
+      Token*valTok = getNumberOrConstant(ctx);
+      if(valTok)
+	ctx->section->buff[ctx->section->index] = parseUImm(valTok,8);
+      else if(ctx->token->type == Char)
 	ctx->section->buff[ctx->section->index] = parseChar(ctx->token->buff + 1);
-      }
-      else compError("Number or Char expected",ctx->token);
+      else compError("Number, Constant or Char expected",ctx->token);
       ctx->section->index++;
     }
   }
   while(nextTokenCheckConcat(ctx));
 }
 
-void encodeBytes(CompContext*ctx,uint32_t size,bool flag_align){
+void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
   nextTokenEnforceExistence(ctx);
 
   if(flag_align){
     if(ctx->pass == INDEX)
-      ctx->section->size = align(ctx->section->size, size);
+      ctx->section->size = align(ctx->section->size, log2size);
     else{
-      uint32_t align_mask = (1<<size)-1;
+      uint32_t align_mask = (1<<log2size)-1;
       while(ctx->section->index & align_mask){
 	ctx->section->buff[ctx->section->index] = 0;
 	ctx->section->index++;
@@ -105,17 +106,29 @@ void encodeBytes(CompContext*ctx,uint32_t size,bool flag_align){
     }
   }
 
+  Token*valTok;
   do{
-    if(ctx->token->type != Number)
-      compError("Number expected",ctx->token);
     if(ctx->pass == INDEX){
-      ctx->section->size += size;
+      ctx->section->size += 1<<log2size;
     }
     else{
-      //TODO
-      if(size==2){}
-      else if(size==4){}
-      ctx->section->index += size;
+      if(!(valTok = getNumberOrConstant(ctx)))
+	compError("Number or Constant expected",ctx->token);
+
+      bool numberHasSign = *(valTok->buff) == '-';
+      if(log2size==1){
+	if(numberHasSign)
+	  *((int16_t*)(ctx->section->buff + ctx->section->index)) = parseImm(valTok,16);
+	else
+	  *((uint16_t*)(ctx->section->buff + ctx->section->index)) = parseUImm(valTok,16);
+      }
+      else if(log2size){
+	if(numberHasSign)
+	  *((int32_t*)(ctx->section->buff + ctx->section->index)) = parseInt(valTok);
+	else
+	  *((uint32_t*)(ctx->section->buff + ctx->section->index)) = parseUInt(valTok);
+      }
+      ctx->section->index += 1<<log2size;
     }
   }
   while(nextTokenCheckConcat(ctx));
@@ -161,16 +174,16 @@ bool compData(CompContext*ctx){
     encodeByte(ctx);
 
   else if(tokenIdentComp(".2byte",ctx->token))
-    encodeBytes(ctx,2,false);
+    encodeBytes(ctx,1,false);
 
   else if(tokenIdentComp(".4byte",ctx->token))
-    encodeBytes(ctx,4,false);
+    encodeBytes(ctx,2,false);
 
   else if(tokenIdentComp(".half",ctx->token))
-    encodeBytes(ctx,2,true);
+    encodeBytes(ctx,1,true);
 
   else if(tokenIdentComp(".word",ctx->token))
-    encodeBytes(ctx,4,true);
+    encodeBytes(ctx,2,true);
 
   else if(tokenIdentComp(".incbin",ctx->token))
     encodeIncbin(ctx);

@@ -6,6 +6,8 @@
 // Reads files recursively and creates a Tokenchain
 Token*tokenizeFile(char*filename);
 
+
+bool tokenComp(Token*token1,Token*token2);
 // Checks if the token is of type Ident and compares the strings
 bool tokenIdentComp(char*str, Token*token);
 

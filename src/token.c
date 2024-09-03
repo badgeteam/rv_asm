@@ -231,6 +231,23 @@ Token*tokenizeFile(char*filename){
 }
 
 
+bool tokenComp(Token*token1,Token*token2){
+  if(token1->type != token2->type)
+    return false;
+  char*cp1 = token1->buff;
+  char*cp2 = token2->buff;
+  while(1){
+    if(cp1==token1->buffTop && cp2 == token2->buffTop)
+      return true;
+    if( (cp1<token1->buffTop) != (cp2<token2->buffTop) )
+      return false;
+    if(*cp1 != *cp2)
+      return false;
+    cp1++;
+    cp2++;
+  }
+}
+
 bool tokenIdentComp(char*str,Token*token){
   if(token->type != Identifier)return false;
   char c1, c2;

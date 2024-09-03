@@ -2,7 +2,11 @@
 
 
 uint32_t align(uint32_t n, uint32_t b){
-  return n;
+
+  uint32_t bitmask = (1<<b) -1;
+  if((n&bitmask)==0)
+    return n;
+  return n - (n&bitmask) + (1<<b);
 }
 
 bool isHexChar(char c){

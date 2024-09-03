@@ -9,6 +9,7 @@
 #include"riscv.h"
 #include"section.h"
 #include"symbol.h"
+#include"constants.h"
 
 #include<stdlib.h>
 
@@ -71,9 +72,15 @@ void compPass(CompContext*ctx){
       continue;
     }
 
-
+    // Common Directives
     if(tokenIdentComp(".equ",ctx->token)){
-      
+      nextTokenEnforceExistence(ctx);
+      Token*nameToken = ctx->token;
+      nextTokenEnforceComma(ctx);
+      if(ctx->pass == INDEX)
+	addConstant(ctx,nameToken,ctx->token);
+      ctx->token = ctx->token->next;
+      continue;
     }
 
     if(tokenIdentComp(".align",ctx->token)){
@@ -88,6 +95,7 @@ void compPass(CompContext*ctx){
 	}
       }
       ctx->token = ctx->token->next;
+      continue;
     }
 
     // Data
@@ -113,6 +121,7 @@ void comp(char*inputfilename,char*outputfilename){
   CompContext*ctx = malloc(sizeof(CompContext));
   // Tokenize File
   ctx->tokenHead = tokenizeFile(inputfilename);
+  ctx->constantHead = NULL;
   // Create Unique Sections
   ctx->shnum = 0;
   ctx->sectionHead = 0;
