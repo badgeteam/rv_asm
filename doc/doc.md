@@ -6,12 +6,31 @@
 ### .text
 ### .data and .rodata
 ### .bss
-
+### .section
 ## Misc
 ### .align
 ### .equ
 
 ## Symbols
+
+### Create Symbol Directives
+| Directive             | Type         | Bind         | Visibility    | Description                |
+| --------------------- | ------------ | ------------ | ------------- | -------------------------- |
+| `label:`              | `STT_NOTYPE` | `STB_LOCAL`  | `STV_DEFAULT` | Create if not existent     |
+| `.global symbolname`  | `STT_NOTYPE` | `STB_GLOBAL` | `STV_DEFAULT` | Create or Modify Bind      |
+| `.globl symbolname`   | `STT_NOTYPE` | `STB_GLOBAL` | `STV_DEFAULT` | Create or Modify Bind      |
+| `.local symbolname`   | `STT_NOTYPE` | `STB_LOCAL`  | `STV_DEFAULT` | Create or Modify Bind      |
+| `.weak symbolname`    | `STT_NOTYPE` | `STB_WEAK`   | `STV_DEFAULT` | Create or Modify Bind      |
+| `.extern symbolname`  | `STT_NOTYPE` | `STB_GLOBAL` | `STV_DEFAULT` | Create or Error upon Redef |
+
+### Modify Symbol Attributes Directives
+| Directive                       | Attribute  | Parameter                                 |
+| ------------------------------- | ---------- | ----------------------------------------- |
+| `.type symbolname, <type>`      | Type       | `@function` `@object` `@notype`           |
+| `.size symbolname, <size>`      | Size       | `<number>`                                |
+| `.visibility symbolname, <vis>` | Visibility | `default` `hidden` `internal` `protected` |
+
+
 
 ## Data
 ### .string

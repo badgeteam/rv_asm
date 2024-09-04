@@ -8,13 +8,21 @@ sym_g1:
 
 symbol0:
 .global symbol0
+.weak symbol0
+
+.type symbol0, @function
+.size symbol0, 50
+.visibility symbol0, hidden
 
 .zero 5
 
-
+.local symbol1
 symbol1:
 
 .bss
+
+
+.globl globltest
 
 #symbol0:
 .space 1
