@@ -191,7 +191,7 @@ void encodeAuipc(CompContext*ctx){
     enc += (parseInt(ctx->token) >> 12) << 12;
 
   else if(tryCompRelocation(ctx,R_RISCV_PCREL_HI20));
-
+  else if(tryCompRelocation(ctx,R_RISCV_GOT_HI20));
   else if((sym=getSymbol(ctx,ctx->token)))
       addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_PCREL_HI20,0);
 

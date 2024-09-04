@@ -37,7 +37,7 @@ uint32_t parseImm(Token*teken, uint32_t length);
 void nextTokenEnforceExistence(CompContext*ctx);
 void nextTokenEnforceComma(CompContext*ctx);
 bool nextTokenCheckConcat(CompContext*ctx);
-
+void nextTokenEnforceNewlineEOF(CompContext*ctx);
 
 
 char*copyTokenContent(Token*token);

@@ -1,4 +1,5 @@
 #include"relocation.h"
+#include "elf.h"
 #include"token.h"
 #include"section.h"
 #include"symbol.h"
@@ -102,6 +103,10 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
     if(!tokenIdentComp("pcrel_word",ctx->token))
       goto fail;
   }
+  else if(type == R_RISCV_GOT_HI20){
+    if(!tokenIdentComp("got_pcrel_hi",ctx->token))
+      goto fail;
+  }
   else goto fail;
 
   nextTokenEnforceExistence(ctx);
@@ -129,6 +134,7 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   if(ctx->token->type != BracketOut)
     goto fail;
 //  ctx->token = ctx->token->next;
+
 
   // Apply Relocation
   addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,nameToken),type,addend);

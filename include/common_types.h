@@ -41,10 +41,9 @@ typedef enum Pass{
 }Pass;
 
 typedef enum AsmMode{
-  DATA  = 0x0001,
-  BSS   = 0x0002,
-  SYM   = 0x0004,
-  TEXT  = 0x0008,
+  DATA,
+  BSS,
+  TEXT,
 }AsmMode;
 
 typedef struct Section{
@@ -71,6 +70,7 @@ typedef struct Symbol{
   uint32_t value;
   uint32_t size;
   uint32_t type;
+  uint32_t bind;
   uint32_t vis;
   uint32_t shndx;
 }Symbol;

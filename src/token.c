@@ -383,7 +383,11 @@ bool nextTokenCheckConcat(CompContext*ctx){
   return false;
 }
 
-
+void nextTokenEnforceNewlineEOF(CompContext*ctx){
+  ctx->token = ctx->token->next;
+  if(ctx->token && ctx->token->type != Newline)
+    compError("Newline or EOF expected",ctx->token);
+}
 
 
 char*copyTokenContent(Token*token){

@@ -1,4 +1,6 @@
 
+.extern extern_symbol
+
 .equ constant, 0x20
 .equ align_bits, 4
 

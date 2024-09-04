@@ -28,29 +28,29 @@ void compPass(CompContext*ctx){
 
     if(tokenIdentComp(".text",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,0x000C);
-      ctx->token=ctx->token->next;
+	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,TEXT);
+      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     if(tokenIdentComp(".data",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0005);
-      ctx->token = ctx->token->next;
+	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,DATA);
+      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     if(tokenIdentComp(".rodata",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096,0x0005);
-      ctx->token = ctx->token->next;
+	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096,DATA);
+      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     if(tokenIdentComp(".bss",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,0x0006);
-      ctx->token = ctx->token->next;
+	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,BSS);
+      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
@@ -66,9 +66,17 @@ void compPass(CompContext*ctx){
       nextTokenEnforceComma(ctx);
       if(ctx->pass == INDEX)
 	addConstant(ctx,nameToken,ctx->token);
-      ctx->token = ctx->token->next;
-      if(ctx->token && ctx->token->type != Newline)
-	compError("Newline expected after .equ directive",ctx->token);
+      nextTokenEnforceNewlineEOF(ctx);
+      continue;
+    }
+
+    // Extern Symbols
+    if(tokenIdentComp(".extern",ctx->token)){
+      nextTokenEnforceExistence(ctx);
+      if(ctx->token->type != Identifier)
+	compError("Identifier expected after .extern directive",ctx->token);
+      addSymbol(ctx,ctx->token,0,0,STT_NOTYPE,STB_GLOBAL,STV_DEFAULT,0);
+      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
@@ -78,12 +86,18 @@ void compPass(CompContext*ctx){
 
     // Symbols
     if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
-      if(! (ctx->section->mode & SYM))
-	compError("Symbol defenition not allowed in this section",ctx->token);
-      addSymbol(ctx,ctx->token,ctx->section->size,0,STT_NOTYPE,STV_DEFAULT,ctx->section->sectionIndex);
-      ctx->token = ctx->token->next->next;
-      if(ctx->token && ctx->token->type != Newline)
-	compError("Newline expected after symbol defenition",ctx->token);
+      addSymbol(
+	  ctx,
+	  ctx->token,
+	  ctx->section->size,
+	  0,
+	  ctx->section->mode==TEXT ? STT_FUNC : STT_OBJECT,
+	  STB_GLOBAL,
+	  STV_DEFAULT,
+	  ctx->section->sectionIndex
+      );
+      ctx->token = ctx->token->next;
+      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
@@ -107,22 +121,20 @@ void compPass(CompContext*ctx){
 	  ctx->section->index ++;
 	}
       }
-      ctx->token = ctx->token->next;
-      if(ctx->token && ctx->token->type != Newline)
-	compError("Newline expected after .align directive",ctx->token);
+      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     // Data
-    if(ctx->section->mode & DATA)
+    if(ctx->section->mode == DATA)
       if(compData(ctx))
 	continue;
-
-    if(ctx->section->mode & BSS)
+    // Bss
+    if(ctx->section->mode == BSS)
       if(compBSS(ctx))
 	continue;
-
-    if(ctx->section->mode & TEXT)
+    // Text
+    if(ctx->section->mode == TEXT)
       if(compRV(ctx))
 	continue;
 
@@ -134,9 +146,11 @@ void compPass(CompContext*ctx){
 void comp(char*inputfilename,char*outputfilename){
   // Create CompContext
   CompContext*ctx = malloc(sizeof(CompContext));
+  ctx->constantHead = NULL;
+
   // Tokenize File
   ctx->tokenHead = tokenizeFile(inputfilename);
-  ctx->constantHead = NULL;
+
   // Create Unique Sections
   ctx->shnum = 0;
   ctx->sectionHead = 0;
@@ -147,12 +161,14 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0,0);
   ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0,0);
 
+  // Create first, empty Symbol
   initSymbolList(ctx);
 
-  // Index_Buffers Pass: Create Sections and estimate Buffer Sizes
+  // Pass Index: Create Sections, Symbols, Constants and estimate Buffer Sizes
   ctx->pass = INDEX;
   compPass(ctx);
 
+  //Set Strtab size and symtab size and symbol count
   symbolPassPostIndex(ctx);
 
   // Shstrtab Size
@@ -176,16 +192,18 @@ void comp(char*inputfilename,char*outputfilename){
     ctx->shstrtab->index++;
   }
 
-  // Comp Pass
+  // Pass Comp: Insert Data into Buffers
   ctx->pass = COMP;
   compPass(ctx);
 
+  // Insert Symbols into Symtab Section, Names into Strtab Section
   symbolPassPostComp(ctx);
 
-  // Set Section Offset, Size
+  // Set Section Size
   for(Section*sec = ctx->sectionHead->next;sec;sec=sec->next)
     sec->shdr.sh_size = sec->index;
 
+  // Set Section Offset
   ctx->sectionHead->next->shdr.sh_offset = sizeof(Elf32_Ehdr) + sizeof(Elf32_Shdr) * ctx->shnum;
   for(Section*sec = ctx->sectionHead->next;sec->next;sec=sec->next){
     sec->next->shdr.sh_offset = sec->shdr.sh_offset + (sec->buff ? sec->index : 0);

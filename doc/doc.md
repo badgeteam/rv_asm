@@ -9,10 +9,20 @@
 
 ## Misc
 ### .align
+### .equ
 
 ## Symbols
 
 ## Data
+### .string
+### .ascii
+### .zero
+### .byte
+### .half
+### .word
+### .2byte
+### .4byte
+### .incbin
 
 ## Bss
 ### .space
@@ -30,14 +40,15 @@
 ##### Lui - Load Upper Immediate
 ```
 lui rd, number
-lui rd, %hi(symbol)
-lui rd, %hi(symbol + 4)
 lui rd, symbol
+lui rd, %hi(symbol)
 ```
 ##### Auipc - Add Upper Immediate to Program Counter
 ```
-Auipc rd, <number>
-Auipc rd, pcrel_hi( <symbol> )
+auipc rd, number
+auipc rd, symbol
+auipc rd, %pcrel_hi(symbol)
+auipc rd, %got_pcrel_hi(symbol)
 ```
 
 

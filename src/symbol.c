@@ -27,7 +27,7 @@ Symbol*getSymbol(CompContext*ctx, struct Token*nameToken){
 
 
 void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t size,
-    uint32_t type, uint32_t vis, uint32_t shndx){
+    uint32_t type, uint32_t bind, uint32_t vis, uint32_t shndx){
   if(ctx->pass == COMP)
     return;
   if(getSymbol(ctx,nameToken))
@@ -41,6 +41,7 @@ void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t 
   sym->value = value;
   sym->size = size;
   sym->type = type;
+  sym->bind = bind;
   sym->vis = vis;
   sym->shndx = shndx;
   ctx->symbolTail->next = sym;
@@ -62,7 +63,7 @@ void symbolPassPostComp(CompContext*ctx){
     elfsym->st_name = ctx->strtab->index;
     elfsym->st_value = sym->value;
     elfsym->st_size = sym->size;
-    elfsym->st_info = sym->type;
+    elfsym->st_info = ELF32_ST_INFO(sym->bind,sym->type);
     elfsym->st_other = sym->vis;
     elfsym->st_shndx = sym->shndx;
     ctx->symtab->index += sizeof(Elf32_Sym);
