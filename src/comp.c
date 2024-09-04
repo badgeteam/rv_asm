@@ -130,9 +130,13 @@ void compPass(CompContext*ctx){
     // Extern Symbols
     if(tokenIdentComp(".extern",ctx->token)){
       nextTokenEnforceExistence(ctx);
-      if(ctx->token->type != Identifier)
-	compError("Identifier expected after .extern directive",ctx->token);
-      addSymbol(ctx,ctx->token,0,0,STT_NOTYPE,STB_GLOBAL,STV_DEFAULT,0);
+      if(ctx->pass == INDEX){
+	if(ctx->token->type != Identifier)
+	  compError("Identifier expected after .extern directive",ctx->token);
+	if(getSymbol(ctx,ctx->token))
+	  compError("Extern symbols cannot be redefined",ctx->token);
+	addSymbol(ctx,ctx->token,0,0,STT_NOTYPE,STB_GLOBAL,STV_DEFAULT,0);
+      }
       nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
@@ -149,11 +153,27 @@ void compPass(CompContext*ctx){
 	  ctx->section->size,
 	  0,
 	  ctx->section->shdr.sh_flags & SHF_EXECINSTR ? STT_FUNC : STT_OBJECT,
-	  STB_GLOBAL,
+	  STB_LOCAL,
 	  STV_DEFAULT,
 	  ctx->section->sectionIndex
       );
       ctx->token = ctx->token->next;
+      nextTokenEnforceNewlineEOF(ctx);
+      continue;
+    }
+
+    if(tokenIdentComp(".global",ctx->token)){
+      nextTokenEnforceExistence(ctx);
+      addSymbol(
+	  ctx,
+	  ctx->token,
+	  ctx->section->size,
+	  0,
+	  ctx->section->shdr.sh_flags & SHF_EXECINSTR ? STT_FUNC : STT_OBJECT,
+	  STB_GLOBAL,
+	  STV_DEFAULT,
+	  ctx->section->sectionIndex
+      );
       nextTokenEnforceNewlineEOF(ctx);
       continue;
     }

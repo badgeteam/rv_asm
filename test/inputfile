@@ -1,18 +1,23 @@
 
 .extern extern_symbol
 
-.equ constant, 0x20
-.equ align_bits, 4
+.data
 
-.section .data.test
-.word 50, constant , %word(symbol0), %pcrel_word(symbol1 + 5)
+.global sym_g1
+sym_g1:
 
 symbol0:
+.global symbol0
+
+.zero 5
+
+
 symbol1:
 
-#.bss
-#.space 1
-#.align align_bits
-#bss_space:
-#.space constant
+.bss
+
+#symbol0:
+.space 1
+.align 4
+bss_space:
 

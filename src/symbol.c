@@ -30,10 +30,23 @@ void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t 
     uint32_t type, uint32_t bind, uint32_t vis, uint32_t shndx){
   if(ctx->pass == COMP)
     return;
-  if(getSymbol(ctx,nameToken))
-    compError("Symbol redefinition",nameToken);
+  Symbol*sym;
+  // Support for modifying bind to global
+  if((sym=getSymbol(ctx,nameToken))){
+    if(sym->shndx == 0)
+      compError("Extern Symbols cannot be redefined",nameToken);
+    if(sym->shndx != ctx->section->sectionIndex)
+      compError("Re Defining Symbols in different Sections is forbidden",ctx->token);
+    if(sym->value != ctx->section->size)
+      compError("Re Defining Symbols with different Values is forbidden",ctx->token);
 
-  Symbol*sym = malloc(sizeof(Symbol));
+    if(bind == STB_GLOBAL)
+      sym->bind = STB_GLOBAL;
+    return;
+  }
+
+  // add Symbol
+  sym = malloc(sizeof(Symbol));
   sym->index = ctx->symbolTail->index + 1;
   sym->next = NULL;
   sym->name = copyTokenContent(nameToken);
