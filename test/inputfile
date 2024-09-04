@@ -1,22 +1,16 @@
 
+.equ constant, 0x20
+.equ align_bits, 4
 
 .data
+.word 50, constant , %word(symbol0), %pcrel_word(symbol1 + 5)
 
-.equ constant, 0x20
+symbol0:
+symbol1:
 
-#.byte constant, constant, '2', 0x20
-#.zero constant
-
-#.zero 1
-#.align 4
-#.2byte constant, 0x2020
-
-#.zero 1
-#.word constant, constant, 0x12341234, -5
-
-#.incbin "incbinfile"
-
-.ascii "test", "test"
-.string "test", "test\n\0"
-
+#.bss
+#.space 1
+#.align align_bits
+#bss_space:
+#.space constant
 

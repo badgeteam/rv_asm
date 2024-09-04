@@ -451,10 +451,19 @@ void compError(char*msg,struct Token*token){
 		fprintf(stderr,"%c",*cp);
 	fprintf(stderr,"\n");
 
+	Token*wrongToken = token;
 	while(token->prev!=NULL && token->prev->type != Newline)token=token->prev;
+	Token*firstToken = token;
+	
 	for(char*cp = token->buff; cp<(token->file->buff+token->file->size) && *cp!='\n'; cp++)
 		fprintf(stderr,"%c",*cp);
-	fprintf(stderr,"\n%s\n",msg);
+	
+	uint32_t row = wrongToken->buff - firstToken->buff;
+	fprintf(stderr,"\n");
+	for(uint32_t i = 0;i<row;i++)fprintf(stderr," ");
+	fprintf(stderr,"^\n");
+
+	fprintf(stderr,"%s\n\n",msg);
 	exit(-1);
 }
 

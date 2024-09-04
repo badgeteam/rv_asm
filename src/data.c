@@ -3,6 +3,7 @@
 #include"token.h"
 #include"util.h"
 #include"constants.h"
+#include"relocation.h"
 #include<stdio.h>
 
 void encodeAscii(CompContext*ctx, bool zero_terminated){
@@ -91,6 +92,8 @@ void encodeByte(CompContext*ctx){
   while(nextTokenCheckConcat(ctx));
 }
 
+
+
 void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
   nextTokenEnforceExistence(ctx);
 
@@ -108,31 +111,48 @@ void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
 
   Token*valTok;
   do{
-    if(ctx->pass == INDEX){
-      ctx->section->size += 1<<log2size;
-    }
-    else{
-      if(!(valTok = getNumberOrConstant(ctx)))
-	compError("Number or Constant expected",ctx->token);
 
-      bool numberHasSign = *(valTok->buff) == '-';
-      if(log2size==1){
-	if(numberHasSign)
-	  *((int16_t*)(ctx->section->buff + ctx->section->index)) = parseImm(valTok,16);
-	else
-	  *((uint16_t*)(ctx->section->buff + ctx->section->index)) = parseUImm(valTok,16);
+    if((valTok = getNumberOrConstant(ctx))){
+
+      if(ctx->pass == COMP){
+	bool numberHasSign = *(valTok->buff) == '-';
+
+	if(log2size==1){
+	  if(numberHasSign)
+	    *((int16_t*)(ctx->section->buff + ctx->section->index)) = parseImm(valTok,16);
+	  else
+	    *((uint16_t*)(ctx->section->buff + ctx->section->index)) = parseUImm(valTok,16);
+	}
+
+	else if(log2size == 2){
+	  if(numberHasSign)
+	    *((int32_t*)(ctx->section->buff + ctx->section->index)) = parseInt(valTok);
+	  else
+	    *((uint32_t*)(ctx->section->buff + ctx->section->index)) = parseUInt(valTok);
+	}
       }
-      else if(log2size){
-	if(numberHasSign)
-	  *((int32_t*)(ctx->section->buff + ctx->section->index)) = parseInt(valTok);
-	else
-	  *((uint32_t*)(ctx->section->buff + ctx->section->index)) = parseUInt(valTok);
-      }
-      ctx->section->index += 1<<log2size;
+      
     }
+
+    else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32));
+    else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32_PCREL));
+
+    else if(log2size==2)
+      compError("Number, Constant, \%word or \%pcrel_word relocation expected",ctx->token);
+    else
+      compError("Number or Constant expectid",ctx->token);
+
+
+    if(ctx->pass == INDEX)
+      ctx->section->size += 1<<log2size;
+    else
+      ctx->section->index += 1<<log2size;
+
   }
   while(nextTokenCheckConcat(ctx));
 }
+
+
 
 void encodeIncbin(CompContext*ctx){
   nextTokenEnforceExistence(ctx);

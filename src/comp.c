@@ -59,19 +59,6 @@ void compPass(CompContext*ctx){
       //TODO Implement
     }
 
-    // Guard against Assembling while no section is selected
-    if(!ctx->section)
-      compError("No Section selected to assemble into",ctx->token);
-
-    // Symbols
-    if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
-      if(! (ctx->section->mode & SYM))
-	compError("Symbol defenition not allowed in this section",ctx->token);
-      addSymbol(ctx,ctx->token,ctx->section->index,0,STT_NOTYPE,STV_DEFAULT,ctx->section->sectionIndex);
-      ctx->token = ctx->token->next->next;
-      continue;
-    }
-
     // Common Directives
     if(tokenIdentComp(".equ",ctx->token)){
       nextTokenEnforceExistence(ctx);
@@ -80,21 +67,49 @@ void compPass(CompContext*ctx){
       if(ctx->pass == INDEX)
 	addConstant(ctx,nameToken,ctx->token);
       ctx->token = ctx->token->next;
+      if(ctx->token && ctx->token->type != Newline)
+	compError("Newline expected after .equ directive",ctx->token);
+      continue;
+    }
+
+    // Guard against Assembling while no section is selected
+    if(!ctx->section)
+      compError("No Section selected to assemble into",ctx->token);
+
+    // Symbols
+    if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot){
+      if(! (ctx->section->mode & SYM))
+	compError("Symbol defenition not allowed in this section",ctx->token);
+      addSymbol(ctx,ctx->token,ctx->section->size,0,STT_NOTYPE,STV_DEFAULT,ctx->section->sectionIndex);
+      ctx->token = ctx->token->next->next;
+      if(ctx->token && ctx->token->type != Newline)
+	compError("Newline expected after symbol defenition",ctx->token);
       continue;
     }
 
     if(tokenIdentComp(".align",ctx->token)){
       nextTokenEnforceExistence(ctx);
+
+      Token*valTok = getNumberOrConstant(ctx);
+      if(!valTok)
+	compError("Number or Constant expected",ctx->token);
+
       if(ctx->pass==INDEX){
-	ctx->section->size = align(ctx->section->size, parseUImm(ctx->token, 5));
-      }else{
-	uint32_t align_mask = (1 << parseUImm(ctx->token, 5)) -1;
+	ctx->section->size = align(ctx->section->size, parseUImm(valTok, 5));
+      }
+      else if(ctx->section->shdr.sh_type == SHT_NOBITS){
+	ctx->section->index = align(ctx->section->index, parseUImm(valTok, 5));
+      }
+      else{
+	uint32_t align_mask = (1 << parseUImm(valTok, 5)) -1;
 	while(ctx->section->index & align_mask){
 	  ctx->section->buff[ctx->section->index] = 0;
 	  ctx->section->index ++;
 	}
       }
       ctx->token = ctx->token->next;
+      if(ctx->token && ctx->token->type != Newline)
+	compError("Newline expected after .align directive",ctx->token);
       continue;
     }
 
@@ -145,7 +160,7 @@ void comp(char*inputfilename,char*outputfilename){
 
   // Allocate section Buffers 
   for(Section*sec = ctx->sectionHead;sec;sec=sec->next){
-    if(sec->size != 0){
+    if(sec->size != 0 && sec->shdr.sh_type != SHT_NOBITS){
       sec->buff = malloc(sec->size);
     }
   }

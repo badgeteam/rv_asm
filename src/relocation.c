@@ -95,6 +95,13 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
     if(!tokenIdentComp("rvc_branch",ctx->token))
       goto fail;
   }
+  else if(type == R_RISCV_32){
+    if(!tokenIdentComp("word",ctx->token))
+      goto fail;
+  }else if(type == R_RISCV_32_PCREL){
+    if(!tokenIdentComp("pcrel_word",ctx->token))
+      goto fail;
+  }
   else goto fail;
 
   nextTokenEnforceExistence(ctx);
