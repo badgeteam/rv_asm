@@ -187,6 +187,7 @@ Token*tokenizeFile(char*filename){
       case'a'...'z':
       case'A'...'Z':
       case'_':
+      case'@':
 	      do index++;
 	      while(index<size && isIdentChar(buff[index]));
 	      type = Identifier;
@@ -286,6 +287,19 @@ bool tokenIdentCompPartialCI(char*str, Token*token,uint32_t offset){
     c2 = *tokstr;
     if('a'<=c1 && c1<='z') c1 -= 0x20;
     if('a'<=c2 && c2<='z') c2 -= 0x20;  
+    if(c1!=c2)return false;
+    str++;
+  }
+  return *str=='\0';
+}
+
+bool tokenIdentCompPartial(char*str, Token*token, uint32_t offset){
+  if(token->type != Identifier)return false;
+  char c1, c2;
+  for(char*tokstr = token->buff + offset; tokstr < token->buffTop; tokstr++){
+    c1 = *str;
+    if(c1=='\0')return true;
+    c2 = *tokstr;
     if(c1!=c2)return false;
     str++;
   }

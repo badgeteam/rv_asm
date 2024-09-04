@@ -12,6 +12,7 @@
 #include"constants.h"
 
 #include<stdlib.h>
+#include<stdio.h>
 
 void compPass(CompContext*ctx){
   ctx->token = ctx->tokenHead;
@@ -28,35 +29,91 @@ void compPass(CompContext*ctx){
 
     if(tokenIdentComp(".text",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096,TEXT);
+	ctx->section = addSection(ctx,".text",SHT_PROGBITS,SHF_ALLOC|SHF_EXECINSTR,0,0,0,4096);
       nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     if(tokenIdentComp(".data",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,DATA);
+	ctx->section = addSection(ctx,".data",SHT_PROGBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096);
       nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     if(tokenIdentComp(".rodata",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096,DATA);
+	ctx->section = addSection(ctx,".rodata",SHT_PROGBITS,SHF_ALLOC,0,0,0,4096);
       nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     if(tokenIdentComp(".bss",ctx->token)){
       if(!(ctx->section = getSectionByIdentifier(ctx)))
-	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096,BSS);
+	ctx->section = addSection(ctx,".bss",SHT_NOBITS,SHF_ALLOC|SHF_WRITE,0,0,0,4096);
       nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
     if(tokenIdentComp(".section",ctx->token)){
-      compError("directive .section not implemented yet",ctx->token);
-      //TODO Implement
+      nextTokenEnforceExistence(ctx);
+      if(ctx->token->type != Identifier)
+	compError("Identifier expected",ctx->token);
+      Token*nameToken = ctx->token;
+
+      // Select Section if it exists
+      if((ctx->section = getSectionByIdentifier(ctx))){
+	while(ctx->token->next && ctx->token->next->type != Newline)
+	  ctx->token = ctx->token->next;
+	ctx->token = ctx->token->next;
+	continue;
+      }
+
+      // Create Section otherwise
+      uint32_t section_flags = 0,section_type = 0;
+      if(ctx->token->next && ctx->token->next->type == Comma){
+	nextTokenEnforceComma(ctx);
+	if(ctx->token->type != String)
+	  compError("String expected",ctx->token);
+	for(char*cp = ctx->token->buff + 1; cp < ctx->token->buffTop -1; cp++){
+	  switch(*cp){
+	    case'a': section_flags |= SHF_ALLOC; break;
+	    case'w': section_flags |= SHF_WRITE; break;
+	    case'x': section_flags |= SHF_EXECINSTR; break;
+	    default: compError("section flags must be any combination of a, w, x",ctx->token);
+	  }
+	}
+	if(ctx->token->next && ctx->token->next->type == Comma){
+	  nextTokenEnforceComma(ctx);
+	  if(tokenIdentComp("@progbits",ctx->token))
+	    section_type = SHT_PROGBITS;
+	  else if(tokenIdentComp("@nobits",ctx->token))
+	    section_type = SHT_NOBITS;
+	}
+      }
+      nextTokenEnforceNewlineEOF(ctx);
+      if(section_flags == 0 || section_type == 0){
+	if(tokenIdentCompPartial(".text",nameToken,0)){
+	  section_flags = section_flags==0 ? SHF_ALLOC|SHF_EXECINSTR : section_flags;
+	  section_type = section_type == 0 ? SHT_PROGBITS : section_type;
+	}
+	else if(tokenIdentCompPartial(".data",nameToken,0)){
+	  section_flags = section_flags==0 ? SHF_ALLOC|SHF_WRITE : section_flags;
+	  section_type = section_type == 0 ? SHT_PROGBITS : section_type;
+	}
+	else if(tokenIdentCompPartial(".rodata",nameToken,0)){
+	  section_flags = section_flags==0 ? SHF_ALLOC : section_flags;
+	  section_type = section_type == 0 ? SHT_PROGBITS : section_type;
+	}
+	else if(tokenIdentCompPartial(".bss",nameToken,0)){
+	  section_flags = section_flags==0 ? SHF_ALLOC|SHF_WRITE : section_flags;
+	  section_type = section_type == 0 ? SHT_NOBITS : section_type;
+	}
+	else
+	 compError("Sections whoose name does not begin with .text, .data, .rodata or .bss must have flags and type specified",ctx->token);
+      }
+      ctx->section = addSection(ctx,copyTokenContent(nameToken),section_type,section_flags,0,0,0,4096);
+      continue;
     }
 
     // Common Directives
@@ -91,7 +148,7 @@ void compPass(CompContext*ctx){
 	  ctx->token,
 	  ctx->section->size,
 	  0,
-	  ctx->section->mode==TEXT ? STT_FUNC : STT_OBJECT,
+	  ctx->section->shdr.sh_flags & SHF_EXECINSTR ? STT_FUNC : STT_OBJECT,
 	  STB_GLOBAL,
 	  STV_DEFAULT,
 	  ctx->section->sectionIndex
@@ -125,18 +182,21 @@ void compPass(CompContext*ctx){
       continue;
     }
 
-    // Data
-    if(ctx->section->mode == DATA)
-      if(compData(ctx))
-	continue;
-    // Bss
-    if(ctx->section->mode == BSS)
+    
+    // BSS
+    if(ctx->section->shdr.sh_type == SHT_PROGBITS){
+      if(ctx->section->shdr.sh_flags & SHF_EXECINSTR){
+	if(compRV(ctx))
+	  continue;
+      }
+      else{
+	if(compData(ctx))
+	  continue;
+      }
+    }else if(ctx->section->shdr.sh_type == SHT_NOBITS){
       if(compBSS(ctx))
 	continue;
-    // Text
-    if(ctx->section->mode == TEXT)
-      if(compRV(ctx))
-	continue;
+    }
 
     compError("Unexpected Token in Main Switch",ctx->token);
   }
@@ -156,10 +216,10 @@ void comp(char*inputfilename,char*outputfilename){
   ctx->sectionHead = 0;
   ctx->sectionTail = 0;
   ctx->size_shstrtab = 0;
-  addSection(ctx,"",0,0,0,0,0,0,0);
-  ctx->shstrtab = addSection(ctx,".shstrtab",SHT_STRTAB,0,0,0,0,0,0);
-  ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0,0);
-  ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0,0);
+  addSection(ctx,"",0,0,0,0,0,0);
+  ctx->shstrtab = addSection(ctx,".shstrtab",SHT_STRTAB,0,0,0,0,0);
+  ctx->strtab = addSection(ctx,".strtab",SHT_STRTAB,0,0,0,0,0);
+  ctx->symtab = addSection(ctx,".symtab",SHT_SYMTAB,0,ctx->strtab->sectionIndex,0,sizeof(Elf32_Sym),0);
 
   // Create first, empty Symbol
   initSymbolList(ctx);

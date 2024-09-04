@@ -33,8 +33,8 @@ void addRelaEntry(CompContext*ctx,uint32_t offset, Symbol*sym, uint32_t type, in
 	ctx->symtab->sectionIndex,
 	ctx->section->sectionIndex,
 	sizeof(Elf32_Rela),
-	0,
-	0);
+	0
+	);
 
   }
 

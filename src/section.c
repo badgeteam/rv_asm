@@ -4,14 +4,13 @@
 #include"stdlib.h"
 
 Section*addSection(CompContext*ctx,char*name,uint32_t type,uint32_t flags,
-    uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign, AsmMode mode){
+    uint32_t link,uint32_t info,uint32_t entsize,uint32_t addralign){
   Section*sec = malloc(sizeof(Section));
   sec->name = name;
   sec->index = 0;
   sec->size = 0;
   sec->buff = NULL;
   sec->next = NULL;
-  sec->mode = mode;
   sec->sectionIndex = ctx->shnum;
   ctx->shnum++;
   sec->rela = NULL;

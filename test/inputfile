@@ -4,7 +4,7 @@
 .equ constant, 0x20
 .equ align_bits, 4
 
-.data
+.section .data.test
 .word 50, constant , %word(symbol0), %pcrel_word(symbol1 + 5)
 
 symbol0:

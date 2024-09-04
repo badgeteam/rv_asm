@@ -40,12 +40,6 @@ typedef enum Pass{
   COMP,
 }Pass;
 
-typedef enum AsmMode{
-  DATA,
-  BSS,
-  TEXT,
-}AsmMode;
-
 typedef struct Section{
   char*name;
   uint8_t*buff;
@@ -53,7 +47,6 @@ typedef struct Section{
   uint32_t sectionIndex;
   uint32_t size;
 
-  enum AsmMode mode;
   struct Section*rela;
   Elf32_Shdr shdr;
   struct Section*next;

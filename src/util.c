@@ -27,6 +27,7 @@ bool isIdentChar(char c){
     case'A'...'Z':
     case'_':
     case'.':
+    case'@':
       return true;
     default:
       return false;

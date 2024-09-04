@@ -19,6 +19,7 @@ bool tokenIdentCompCI(char*str, Token*token);
  * token string does not have to be terminated
  */
 bool tokenIdentCompPartialCI(char*str, Token*token, uint32_t offset);
+bool tokenIdentCompPartial(char*str,Token*token,uint32_t offset);
 
 // Parses an unsigned Integer or throws an error
 uint32_t parseUInt(Token*token);
@@ -41,7 +42,6 @@ void nextTokenEnforceNewlineEOF(CompContext*ctx);
 
 
 char*copyTokenContent(Token*token);
-
 // Returns the name of the token. For Debug purposes
 char*tokenTypeName(Token*token);
 
