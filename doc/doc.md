@@ -1,19 +1,39 @@
-# rvasm Documentation
 
-# Directives
+# Table of Contents
+1. [Sections](#Sections)
+2. [Symbols](#Symbols)
 
-## Sections
-### .text
-### .data and .rodata
-### .bss
-### .section
-## Misc
-### .align
-### .equ
 
-## Symbols
+# Sections
+## Generic Section Directives
+The following Directives create or select a section named like the Directive with default Attributes.
 
-### Create Symbol Directives
+| Directive | Description           | Type           | Flags                       |
+| --------- | --------------------- | -------------- | --------------------------- |
+| `.text`   | Code                  | `SHT_PROGBITS` | `SHF_ALLOC` `SHF_EXECINSTR` |
+| `.data`   | Initialized Data      | `SHT_PROGBITS` | `SHF_ALLOC` `SHF_WRITE`     |
+| `.rodata` | Initialized Data      | `SHT_PROGBITS` | `SHF_ALLOC`                 |
+| `.bss`    | Zero Initialized Data | `SHT_NOBITS`   | `SHF_ALLOC` `SHF_WRITE`     |
+
+## .section
+The `.section` Directive creates or selects a Section with specified Name, Type and Flags.  
+If the Name starts with a generic Section name (for example `.text.mysectionname`),  
+the Type and Flags can be omitted and the Default will be selected.  
+### Valid Syntax
+```
+.section .text.mysectionname
+.section .text.mysectionname, "<flags>"
+.section .text.mysectionname, "<flags>", <type>
+.section .mysectionname, "<flags>", <type>
+```
+#### Field Descriptions
+- `"<flags>"` : Any Combination of `a` `w` `x` in Parenthesis. For Example: `"awx"`  
+- `<type>` : `@progbits` or `@nobits`
+
+
+
+# Symbols
+## Create Symbol Directives
 | Directive             | Type         | Bind         | Visibility    | Description                |
 | --------------------- | ------------ | ------------ | ------------- | -------------------------- |
 | `label:`              | `STT_NOTYPE` | `STB_LOCAL`  | `STV_DEFAULT` | Create if not existent     |
@@ -23,31 +43,34 @@
 | `.weak symbolname`    | `STT_NOTYPE` | `STB_WEAK`   | `STV_DEFAULT` | Create or Modify Bind      |
 | `.extern symbolname`  | `STT_NOTYPE` | `STB_GLOBAL` | `STV_DEFAULT` | Create or Error upon Redef |
 
-### Modify Symbol Attributes Directives
+## Modify Symbol Attributes Directives
 | Directive                       | Attribute  | Parameter                                 |
 | ------------------------------- | ---------- | ----------------------------------------- |
 | `.type symbolname, <type>`      | Type       | `@function` `@object` `@notype`           |
 | `.size symbolname, <size>`      | Size       | `<number>`                                |
 | `.visibility symbolname, <vis>` | Visibility | `default` `hidden` `internal` `protected` |
 
+# Misc Directives
+## .align
+## .set
+## .equ
+
+# Data
+## .string
+## .ascii
+## .zero
+## .byte
+## .half
+## .word
+## .2byte
+## .4byte
+## .incbin
+
+# Bss
+## .space
 
 
-## Data
-### .string
-### .ascii
-### .zero
-### .byte
-### .half
-### .word
-### .2byte
-### .4byte
-### .incbin
-
-## Bss
-### .space
-
-
-## RiscV
+# RiscV
 ### Registers
 #### Integer Registers
 #### Float Registers
