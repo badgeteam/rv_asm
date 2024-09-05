@@ -1,28 +1,14 @@
 
-.extern extern_symbol
 
 .data
 
-.global sym_g1
-sym_g1:
+.section .bss.test
 
-symbol0:
-.global symbol0
-.weak symbol0
-
-.type symbol0, @function
-.size symbol0, 50
-.visibility symbol0, hidden
-
-.zero 5
-
-.local symbol1
-symbol1:
-
-.bss
-
+.section .lel, "awx", @progbits
 
 .globl globltest
+
+.section .bss.test
 
 #symbol0:
 .space 1
