@@ -33,22 +33,40 @@ the Type and Flags can be omitted and the Default will be selected.
 
 
 # Symbols
-## Create Symbol Directives
-| Directive             | Type         | Bind         | Visibility    | Description                |
-| --------------------- | ------------ | ------------ | ------------- | -------------------------- |
-| `label:`              | `STT_NOTYPE` | `STB_LOCAL`  | `STV_DEFAULT` | Create if not existent     |
-| `.global symbolname`  | `STT_NOTYPE` | `STB_GLOBAL` | `STV_DEFAULT` | Create or Modify Bind      |
-| `.globl symbolname`   | `STT_NOTYPE` | `STB_GLOBAL` | `STV_DEFAULT` | Create or Modify Bind      |
-| `.local symbolname`   | `STT_NOTYPE` | `STB_LOCAL`  | `STV_DEFAULT` | Create or Modify Bind      |
-| `.weak symbolname`    | `STT_NOTYPE` | `STB_WEAK`   | `STV_DEFAULT` | Create or Modify Bind      |
-| `.extern symbolname`  | `STT_NOTYPE` | `STB_GLOBAL` | `STV_DEFAULT` | Create or Error upon Redef |
 
-## Modify Symbol Attributes Directives
-| Directive                       | Attribute  | Parameter                                 |
-| ------------------------------- | ---------- | ----------------------------------------- |
-| `.type symbolname, <type>`      | Type       | `@function` `@object` `@notype`           |
-| `.size symbolname, <size>`      | Size       | `<number>`                                |
-| `.visibility symbolname, <vis>` | Visibility | `default` `hidden` `internal` `protected` |
+There are several directives that create or modify Symbols.  
+
+## Label Directive
+
+Syntax: `<symbolname>:`  
+This is the only one that sets the value and the section index.  
+Those values are then locked into place.  
+There will be an error if another Label Directive tries to change the value or the shndx.  
+  
+The Default Attributes are:
+- Size: `0`
+- Type: `STT_NOTYPE`
+- Bind: `STB_LOCAL`
+- Visibility: `STV_DEFAULT`
+
+## Other Symbol Directives
+
+All the other Symbol Directives only modify the relevant Attributes or create Placeholder Symbols
+
+| Directive                 | Modified Field | Type         | Bind         | Visibility      | Size     |
+| ------------------------- | -------------- | ------------ | ------------ | --------------- | -------- |
+| `.extern <name>`          | None           | `NOTYPE`     | `LOCAL`      | `DEFAULT`       | `0`      |
+| `.global <name>`          | Bind           | `NOTYPE`     | **`GLOBAL`** | `DEFAULT`       | `0`      |
+| `.globl <name>`           | Bind           | `NOTYPE`     | **`GLOBAL`** | `DEFAULT`       | `0`      |
+| `.local <name>`           | Bind           | `NOTYPE`     | **`LOCAL`**  | `DEFAULT`       | `0`      |
+| `.weak <name>`            | Bind           | `NOTYPE`     | **`WEAK`**   | `DEFAULT`       | `0`      |
+| `.hidden_name <name>`     | Visibility     | `NOTYPE`     | `LOCAL`      | **`HIDDEN`**    | `0`      |
+| `.internal <name>`        | Visibility     | `NOTYPE`     | `LOCAL`      | **`INTERNAL`**  | `0`      |
+| `.protected <name>`       | Visibility     | `NOTYPE`     | `LOCAL`      | **`PROTECTED`** | `0`      |
+| `.type <name>, @function` | Type           | **`FUNC`**   | `LOCAL`      | `DEFAULT`       | `0`      |
+| `.type <name>, @object`   | Type           | **`OBJECT`** | `LOCAL`      | `DEFAULT`       | `0`      |
+| `.type <name>, @notype`   | Type           | **`NOTYPE`** | `LOCAL`      | `DEFAULT`       | `0`      |
+| `.size <name>, <size>`    | Size           | `NOTYPE`     | `LOCAL`      | `DEFAULT`       | `<size>` |
 
 # Misc Directives
 ## .align

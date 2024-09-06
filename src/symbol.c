@@ -13,6 +13,7 @@ void initSymbolList(CompContext*ctx){
   sym->type = 0;
   sym->vis = 0;
   sym->shndx = 0;
+  sym->locked = true;
   ctx->symbolHead = sym;
   ctx->symbolTail = sym;
 }
@@ -27,7 +28,7 @@ Symbol*getSymbol(CompContext*ctx, struct Token*nameToken){
 
 
 void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t size,
-    uint32_t type, uint32_t bind, uint32_t vis, uint32_t shndx){
+    uint32_t type, uint32_t bind, uint32_t vis, uint32_t shndx, bool locked){
   if(ctx->pass == COMP)
     return;
   // add Symbol
@@ -42,6 +43,7 @@ void addSymbol(CompContext*ctx,struct Token*nameToken, uint32_t value, uint32_t 
   sym->bind = bind;
   sym->vis = vis;
   sym->shndx = shndx;
+  sym->locked = locked;
   ctx->symbolTail->next = sym;
   ctx->symbolTail = sym;
 }
@@ -74,21 +76,35 @@ void symbolPassPostComp(CompContext*ctx){
     ctx->strtab->index++;
   }
 }
-// Creates an external Symbol
-// Error upon duplicate Symbols
-void compExtern(CompContext*ctx){
-  nextTokenEnforceExistence(ctx);
-  if(ctx->pass == INDEX && getSymbol(ctx,ctx->token) != NULL)
-    compError("Cannot create duplicate extern symbols",ctx->token);
-  addSymbol(ctx,ctx->token,0,0,STT_NOTYPE,STB_GLOBAL,STV_DEFAULT,0);
+
+
+void compLabel(CompContext*ctx){
+  if(!ctx->section)
+    compError("No Section selected",ctx->token);
+  if(ctx->pass == INDEX){
+    Symbol*sym = getSymbol(ctx,ctx->token);
+    if(!sym){
+      addSymbol(ctx,ctx->token,ctx->section->size,0,STT_NOTYPE,STB_LOCAL,STV_DEFAULT,ctx->section->sectionIndex, true);
+    }else if(!sym->locked){
+      sym->value = ctx->section->size;
+      sym->shndx = ctx->section->sectionIndex;
+      sym->locked = true;
+    }else if(sym->value != ctx->section->size || sym->shndx != ctx->section->sectionIndex){
+      compError("Cannot Redefine Symbol Value or Shndx",ctx->token);
+    }
+  }
+  ctx->token = ctx->token->next;
   nextTokenEnforceNewlineEOF(ctx);
 }
 
-// Creates a Symbol if it does not exist
-void compLabel(CompContext*ctx){
-  if(ctx->pass == INDEX && getSymbol(ctx,ctx->token)==NULL)
-    addSymbol(ctx,ctx->token,ctx->section->size,0,STT_NOTYPE,STB_LOCAL,STV_DEFAULT,ctx->section->sectionIndex);
-  ctx->token = ctx->token->next;
+#include<stdio.h>
+
+void compExtern(CompContext*ctx){
+  nextTokenEnforceExistence(ctx);
+  if(ctx->pass == INDEX){
+    if(!getSymbol(ctx,ctx->token))
+      addSymbol(ctx,ctx->token,0,0,STT_NOTYPE,STB_GLOBAL,STV_DEFAULT,0,false);
+  }
   nextTokenEnforceNewlineEOF(ctx);
 }
 
@@ -97,13 +113,22 @@ void compSymbolBind(CompContext*ctx, uint32_t bind){
   nextTokenEnforceExistence(ctx);
   if(ctx->pass == INDEX){
     Symbol*sym = getSymbol(ctx,ctx->token);
-    if(sym){
-      if(sym->shndx==0)
-	compError("Cannot change Binding of Extern Symbol",ctx->token);
+    if(sym)
       sym->bind = bind;
-    }else{
-      addSymbol(ctx,ctx->token,ctx->section->size,0,STT_NOTYPE,bind,STV_DEFAULT,ctx->section->sectionIndex);
-    }
+    else
+      addSymbol(ctx,ctx->token,0,0,STT_NOTYPE,bind,STV_DEFAULT,0,false);
+  }
+  nextTokenEnforceNewlineEOF(ctx);
+}
+
+void compSymbolVis(CompContext*ctx, uint32_t vis){
+  nextTokenEnforceExistence(ctx);
+  if(ctx->pass == INDEX){
+    Symbol*sym = getSymbol(ctx,ctx->token);
+    if(sym)
+      sym->vis = vis;
+    else
+      addSymbol(ctx,ctx->token,0,0,STT_NOTYPE,STB_LOCAL,vis,0,false);
   }
   nextTokenEnforceNewlineEOF(ctx);
 }
@@ -112,16 +137,21 @@ void compSymbolBind(CompContext*ctx, uint32_t bind){
 void compType(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
   if(ctx->pass == INDEX){
-    Symbol*sym = getSymbol(ctx,ctx->token);
-    if(!sym)compError("Symbol not found",ctx->token);
+    Token*nameToken = ctx->token;
     nextTokenEnforceComma(ctx);
+    uint32_t type = 0;
     if(tokenIdentComp("@function",ctx->token))
-      sym->type = STT_FUNC;
+      type = STT_FUNC;
     else if(tokenIdentComp("@object",ctx->token))
-      sym->type = STT_OBJECT;
+      type = STT_OBJECT;
     else if(tokenIdentComp("@notype",ctx->token))
-      sym->type = STT_NOTYPE;
+      type = STT_NOTYPE;
     else compError("@function or @object expected",ctx->token);
+    Symbol*sym = getSymbol(ctx,nameToken);
+    if(sym)
+      sym->type = type;
+    else
+      addSymbol(ctx,ctx->token,0,0,type,STB_LOCAL,STV_DEFAULT,0,false);
   }
   else nextTokenEnforceComma(ctx);
   nextTokenEnforceNewlineEOF(ctx);
@@ -131,68 +161,48 @@ void compType(CompContext*ctx){
 void compSize(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
   if(ctx->pass == INDEX){
-    Symbol*sym = getSymbol(ctx,ctx->token);
-    if(!sym)compError("Symbol not found",ctx->token);
+    Token*nameToken = ctx->token;
     nextTokenEnforceComma(ctx);
-    sym->size = parseUInt(ctx->token);
-  }
-  else nextTokenEnforceComma(ctx);
-  nextTokenEnforceNewlineEOF(ctx);
-}
-
-// Modifies the Visibility of an existing symbol
-// Non-Standard Syntax
-void compVisibility(CompContext*ctx){
-  nextTokenEnforceExistence(ctx);
-  if(ctx->pass == INDEX){
+    uint32_t size = parseUInt(ctx->token);
     Symbol*sym = getSymbol(ctx,ctx->token);
-    if(!sym)compError("Symbol not found",ctx->token);
-    nextTokenEnforceComma(ctx);
-    if(tokenIdentComp("default",ctx->token))
-      sym->vis = STV_DEFAULT;
-    else if(tokenIdentComp("hidden",ctx->token))
-      sym->vis = STV_HIDDEN;
-    else if(tokenIdentComp("internal",ctx->token))
-      sym->vis = STV_INTERNAL;
-    else if(tokenIdentComp("protected",ctx->token))
-      sym->vis = STV_PROTECTED;
-    else compError("default, hidden, internal or protected expected",ctx->token);
+    if(sym)
+      sym->size = size;
+    else
+     addSymbol(ctx,nameToken,0,size,STT_NOTYPE,STB_LOCAL,STV_DEFAULT,0,false);
   }
   else nextTokenEnforceComma(ctx);
   nextTokenEnforceNewlineEOF(ctx);
 }
 
 bool tryCompSymbolDirectives(CompContext*ctx){
-  
-  if(tokenIdentComp(".extern",ctx->token)){
+  if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot)
+    compLabel(ctx);
+
+  else if(tokenIdentComp(".extern",ctx->token))
     compExtern(ctx);
-    return true;
-  }
 
-  if(ctx->section){
+  else if(tokenIdentComp(".global", ctx->token))
+    compSymbolBind(ctx, STB_GLOBAL);
+  else if(tokenIdentComp(".globl",ctx->token))
+    compSymbolBind(ctx, STB_GLOBAL);
+  else if(tokenIdentComp(".local",ctx->token))
+    compSymbolBind(ctx, STB_LOCAL);
+  else if(tokenIdentComp(".weak", ctx->token))
+    compSymbolBind(ctx, STB_WEAK);
 
-    if(ctx->token->type == Identifier && ctx->token->next && ctx->token->next->type == Doubledot)
-      compLabel(ctx);
-    else if(tokenIdentComp(".global", ctx->token))
-      compSymbolBind(ctx, STB_GLOBAL);
-    else if(tokenIdentComp(".globl",ctx->token))
-      compSymbolBind(ctx, STB_GLOBAL);
-    else if(tokenIdentComp(".local",ctx->token))
-      compSymbolBind(ctx, STB_LOCAL);
-    else if(tokenIdentComp(".weak", ctx->token))
-      compSymbolBind(ctx, STB_WEAK);
-    else if(tokenIdentComp(".type", ctx->token))
-      compType(ctx);
-    else if(tokenIdentComp(".size",ctx->token))
-      compSize(ctx);
-    else if(tokenIdentComp(".visibility",ctx->token))
-      compVisibility(ctx);
-    else return false;
-    return true;
+  else if(tokenIdentComp(".hidden_names",ctx->token))
+    compSymbolVis(ctx,STV_HIDDEN);
+  else if(tokenIdentComp(".internal",ctx->token))
+    compSymbolVis(ctx,STV_INTERNAL);
+  else if(tokenIdentComp(".protected",ctx->token))
+    compSymbolVis(ctx,STV_PROTECTED);
 
-  }
-  return false;
-
+  else if(tokenIdentComp(".type", ctx->token))
+    compType(ctx);
+  else if(tokenIdentComp(".size",ctx->token))
+    compSize(ctx);
+  else return false;
+  return true;
 }
 
 

@@ -28,6 +28,9 @@ void compPass(CompContext*ctx){
     if(tryCompSectionDirectives(ctx))
       continue;
 
+    if(tryCompSymbolDirectives(ctx))
+      continue;
+
 
     // Common Directives
     if(tokenIdentComp(".equ",ctx->token)){
@@ -40,14 +43,11 @@ void compPass(CompContext*ctx){
       continue;
     }
 
-    if(tryCompSymbolDirectives(ctx))
-      continue;
-
-
-    if(!ctx->section)
-      compError("No Section selected",ctx->token);
 
     if(tokenIdentComp(".align",ctx->token)){
+      if(!ctx->section)
+	compError("No Section selected",ctx->token);
+
       nextTokenEnforceExistence(ctx);
 
       Token*valTok = getNumberOrConstant(ctx);
@@ -73,6 +73,9 @@ void compPass(CompContext*ctx){
 
     
     // BSS
+
+    if(ctx->section){
+
     if(ctx->section->shdr.sh_type == SHT_PROGBITS){
       if(ctx->section->shdr.sh_flags & SHF_EXECINSTR){
 	if(compRV(ctx))
@@ -87,7 +90,10 @@ void compPass(CompContext*ctx){
 	continue;
     }
 
+    }
+
     compError("Unexpected Token in Main Switch",ctx->token);
+
   }
 }
 

@@ -66,6 +66,8 @@ typedef struct Symbol{
   uint32_t bind;
   uint32_t vis;
   uint32_t shndx;
+
+  bool locked;
 }Symbol;
 
 typedef struct Constant{

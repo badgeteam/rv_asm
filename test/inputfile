@@ -1,17 +1,10 @@
-
+.type symbol, @function
+.size symbol, 5
+.extern symbol
+.hidden_names symbol
 
 .data
-
-.section .bss.test
-
-.section .lel, "awx", @progbits
-
-.globl globltest
-
-.section .bss.test
-
-#symbol0:
-.space 1
-.align 4
-bss_space:
-
+  .byte 0x00
+  symbol:
+  .global symbol
+  .type symbol, @object
