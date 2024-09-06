@@ -53,20 +53,20 @@ The Default Attributes are:
 
 All the other Symbol Directives only modify the relevant Attributes or create Placeholder Symbols
 
-| Directive                 | Modified Field | Type         | Bind         | Visibility      | Size     |
-| ------------------------- | -------------- | ------------ | ------------ | --------------- | -------- |
-| `.extern <name>`          | None           | `NOTYPE`     | `LOCAL`      | `DEFAULT`       | `0`      |
-| `.global <name>`          | Bind           | `NOTYPE`     | **`GLOBAL`** | `DEFAULT`       | `0`      |
-| `.globl <name>`           | Bind           | `NOTYPE`     | **`GLOBAL`** | `DEFAULT`       | `0`      |
-| `.local <name>`           | Bind           | `NOTYPE`     | **`LOCAL`**  | `DEFAULT`       | `0`      |
-| `.weak <name>`            | Bind           | `NOTYPE`     | **`WEAK`**   | `DEFAULT`       | `0`      |
-| `.hidden_name <name>`     | Visibility     | `NOTYPE`     | `LOCAL`      | **`HIDDEN`**    | `0`      |
-| `.internal <name>`        | Visibility     | `NOTYPE`     | `LOCAL`      | **`INTERNAL`**  | `0`      |
-| `.protected <name>`       | Visibility     | `NOTYPE`     | `LOCAL`      | **`PROTECTED`** | `0`      |
-| `.type <name>, @function` | Type           | **`FUNC`**   | `LOCAL`      | `DEFAULT`       | `0`      |
-| `.type <name>, @object`   | Type           | **`OBJECT`** | `LOCAL`      | `DEFAULT`       | `0`      |
-| `.type <name>, @notype`   | Type           | **`NOTYPE`** | `LOCAL`      | `DEFAULT`       | `0`      |
-| `.size <name>, <size>`    | Size           | `NOTYPE`     | `LOCAL`      | `DEFAULT`       | `<size>` |
+| Directive                 | Modified Field | Type         | Bind         | Visibility      | Size         |
+| ------------------------- | -------------- | ------------ | ------------ | --------------- | ------------ |
+| `.extern <name>`          | None           | Notype       | Local        | Default         | 0            |
+| `.type <name>, @function` | Type           | `STT_FUNC`   | Local        | Default         | 0            |
+| `.type <name>, @object`   | Type           | `STT_OBJECT` | Local        | Default         | 0            |
+| `.type <name>, @notype`   | Type           | `STT_NOTYPE` | Local        | Default         | 0            |
+| `.global <name>`          | Bind           | Notype       | `STB_GLOBAL` | Default         | 0            |
+| `.globl <name>`           | Bind           | Notype       | `STB_GLOBAL` | Default         | 0            |
+| `.local <name>`           | Bind           | Notype       | `STB_LOCAL`  | Default         | 0            |
+| `.weak <name>`            | Bind           | Notype       | `STB_WEAK`   | Default         | 0            |
+| `.hidden_name <name>`     | Visibility     | Notype       | Local        | `STV_HIDDEN`    | 0            |
+| `.internal <name>`        | Visibility     | Notype       | Local        | `STV_INTERNAL`  | 0            |
+| `.protected <name>`       | Visibility     | Notype       | Local        | `STV_PROTECTED` | 0            |
+| `.size <name>, <size>`    | Size           | Notype       | Local        | Default         | **`<size>`** |
 
 # Misc Directives
 ## .align
