@@ -3,8 +3,9 @@
 #include"data.h"
 #include"token.h"
 #include"util.h"
-#include"constants.h"
 #include"relocation.h"
+#include"lr.h"
+
 #include<stdio.h>
 
 void encodeAscii(CompContext*ctx, bool zero_terminated){
@@ -57,10 +58,10 @@ void encodeAscii(CompContext*ctx, bool zero_terminated){
 void encodeZeros(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
 
-  Token*valTok = getNumberOrConstant(ctx);
-  if(!valTok)
-    compError("Number or existing Constant expected",ctx->token);
-  uint32_t size = parseUInt(valTok);
+  if(!lrParseNumConstExpression(ctx))
+    compError("Arithmetic Expression expected",ctx->token);
+  enforceNewlineEOF(ctx);
+  uint32_t size = getUInt(ctx);
 
   if(ctx->pass == INDEX)
     ctx->section->size += size;
@@ -71,7 +72,6 @@ void encodeZeros(CompContext*ctx){
     }
   }
 
-  ctx->token = ctx->token->next;
 }
 
 void encodeByte(CompContext*ctx){
@@ -81,12 +81,14 @@ void encodeByte(CompContext*ctx){
     if(ctx->pass == INDEX)
       ctx->section->size ++;
     else{
-      Token*valTok = getNumberOrConstant(ctx);
-      if(valTok)
-	ctx->section->buff[ctx->section->index] = parseUImm(valTok,8);
-      else if(ctx->token->type == Char)
+      if(lrParseNumConstExpression(ctx)){
+	ctx->token = ctx->token->prev;
+	ctx->section->buff[ctx->section->index] = getUImm(ctx,8);
+      }else if(ctx->token->type == Char){
 	ctx->section->buff[ctx->section->index] = parseChar(ctx->token->buff + 1);
-      else compError("Number, Constant or Char expected",ctx->token);
+      }else {
+	compError("Arithmetic Expression or Char expected",ctx->token);
+      }
       ctx->section->index++;
     }
   }
@@ -110,30 +112,27 @@ void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
     }
   }
 
-  Token*valTok;
   do{
 
-    if((valTok = getNumberOrConstant(ctx))){
-
-      if(ctx->pass == COMP){
-	bool numberHasSign = *(valTok->buff) == '-';
-
-	if(log2size==1){
-	  if(numberHasSign)
-	    *((int16_t*)(ctx->section->buff + ctx->section->index)) = parseImm(valTok,16);
-	  else
-	    *((uint16_t*)(ctx->section->buff + ctx->section->index)) = parseUImm(valTok,16);
+    if(lrParseNumConstExpression(ctx)){
+      ctx->token = ctx->token->prev;
+      if(log2size == 1){
+	if(ctx->lrHead->sign == 1){
+	  *((uint16_t*)(ctx->section->buff + ctx->section->index)) = getUImm(ctx,16);
+	}else{
+	  *((uint16_t*)(ctx->section->buff + ctx->section->index)) = getImm(ctx,16);
 	}
-
-	else if(log2size == 2){
-	  if(numberHasSign)
-	    *((int32_t*)(ctx->section->buff + ctx->section->index)) = parseInt(valTok);
-	  else
-	    *((uint32_t*)(ctx->section->buff + ctx->section->index)) = parseUInt(valTok);
+      }else if(log2size == 2){
+	if(ctx->lrHead->sign == 1){
+	  *((uint32_t*)(ctx->section->buff + ctx->section->index)) = getUInt(ctx);
+	}else{
+	  *((int32_t*)(ctx->section->buff + ctx->section->index)) = getInt(ctx);
 	}
       }
-      
+
+
     }
+
 
     else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32));
     else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32_PCREL));

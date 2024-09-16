@@ -1,10 +1,8 @@
-.type symbol, @function
-.size symbol, 5
-.extern symbol
-.hidden_names symbol
+
+.equ c1, 5 + ( 5 * 2 + 2 ) 
+.equ c2, c1 - 20
+.equ c3, - 7
 
 .data
-  .byte 0x00
-  symbol:
-  .global symbol
-  .type symbol, @object
+.zero 5+4 - c3
+

@@ -34,12 +34,14 @@ uint32_t parseUImm(Token*token, uint32_t length);
 uint32_t parseImm(Token*teken, uint32_t length);
 
 
+uint32_t parseNumber(Token*token);
+
 
 void nextTokenEnforceExistence(CompContext*ctx);
 void nextTokenEnforceComma(CompContext*ctx);
 bool nextTokenCheckConcat(CompContext*ctx);
 void nextTokenEnforceNewlineEOF(CompContext*ctx);
-
+void enforceNewlineEOF(CompContext*ctx);
 
 char*copyTokenContent(Token*token);
 // Returns the name of the token. For Debug purposes

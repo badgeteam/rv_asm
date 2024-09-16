@@ -1,32 +1,42 @@
 
 #include"constants.h"
 #include"token.h"
+#include"lr.h"
 #include<stdlib.h>
 
-void addConstant(CompContext*ctx,Token*nameToken,Token*valueToken){
+
+void setConstant(CompContext*ctx,Token*nameToken, uint32_t value, int sign){
+  Constant*con;
+  if(!(con=getConstant(ctx,nameToken))){
+    con = malloc(sizeof(Constant));
+    con->next = ctx->constantHead;
+    ctx->constantHead = con;
+  }
+  con->nameToken = nameToken;
+  con->value = value;
+  con->sign = sign;
+}
+
+
+
+bool tryCompEquSet(CompContext*ctx){
+  if( ! (tokenIdentComp(".equ", ctx->token) || tokenIdentComp(".set", ctx->token) ) )
+      return false;
+  nextTokenEnforceExistence(ctx);
+  Token*nameToken = ctx->token;
   if(nameToken->type != Identifier)
     compError("Identifier expected",nameToken);
-  if(valueToken->type != Number)
-    compError("Number expected",valueToken);
-  Constant*con = malloc(sizeof(Constant));
-  con->nameToken = nameToken;
-  con->valueToken = valueToken;
-  con->next = ctx->constantHead;
-  ctx->constantHead = con;
+  nextTokenEnforceComma(ctx);
+  if(!lrParseNumConstExpression(ctx))
+    compError("Unable to parse Expression",ctx->token);
+  enforceNewlineEOF(ctx);
+  setConstant(ctx,nameToken,ctx->lrHead->value,ctx->lrHead->sign);
+  return true;
 }
 
-Token*getConstant(CompContext*ctx, Token*nameToken){
+Constant*getConstant(CompContext*ctx, Token*nameToken){
   for(Constant*con = ctx->constantHead; con; con=con->next)
     if(tokenComp(con->nameToken,nameToken))
-      return con->valueToken;
+      return con;
   return NULL;
-}
-
-Token*getNumberOrConstant(CompContext*ctx){
-  if(ctx->token->type == Number)
-    return ctx->token;
-  else if(ctx->token->type == Identifier)
-    return getConstant(ctx,ctx->token);
-  else
-   return NULL;
 }

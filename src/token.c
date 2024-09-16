@@ -93,6 +93,19 @@ Token*tokenizeFile(char*filename){
 	      index++;
 	      type = Plus;
 	      break;
+      case'-':
+	      index++;
+	      type = Minus;
+	      break;
+      case'*':
+	      index++;
+	      type = Times;
+	      break;
+      case'/':
+	      index++;
+	      type = Slash;
+	      break;
+
       // Character
       case'\'':
 	      index++;
@@ -111,6 +124,7 @@ Token*tokenizeFile(char*filename){
 	      index++;
 	      type = Char;
 	      break;
+
       // String
       case'"':
 	      index++;
@@ -129,30 +143,24 @@ Token*tokenizeFile(char*filename){
 	      index++;
 	      type = String;
 	      break;
+
       // Number
-      case'-':
-	      index++;
-	      if(index >= size)
-		tokenizeError("Unexpected EOF",file,line);
-	      if(buff[index] < '0' || '9' < buff[index]){
-		type = Minus;
-		break;
-	      }
       case'0':
 	      if(index + 1 < size){
 		index++;
 		if(buff[index] == 'x'){
 		  do index++;
-		  while(isHexChar(buff[index]));
+		  while( index < size && isHexChar(buff[index]) );
 		  type = Number;
 		  break;
 		}
 	      }
       case'1'...'9':
-	      while(index<size && buff[index]>='0' && buff[index]<='9')
+	      while( index<size && buff[index]>='0' && buff[index]<='9')
 		index++;
 	      type = Number;
 	      break;
+
       // Identifier or file include
       case'.':
 	      if(index+8<size && StrCmp(".include",buff+index,buff+index+8)){
@@ -192,6 +200,7 @@ Token*tokenizeFile(char*filename){
 	      while(index<size && isIdentChar(buff[index]));
 	      type = Identifier;
 	      break;
+
       // Space
       case' ':
       case'\t':
@@ -306,6 +315,29 @@ bool tokenIdentCompPartial(char*str, Token*token, uint32_t offset){
   return *str=='\0';
 }
 
+
+
+uint32_t parseNumber(Token*token){
+  if(token->type != Number) compError("Number Expected",token);
+  char*cp = token->buff;
+  uint32_t n = 0;
+  if(*cp == '0' && cp + 1 < token->buffTop && *(cp + 1) == 'x'){
+    cp += 2;
+    while(cp < token->buffTop){
+      n = ( n << 4 ) + parseHexChar(*cp);
+      cp++;
+    }
+  }
+  else{
+    while(cp < token->buffTop){
+      n = n * 10 + *cp - '0';
+      cp++;
+    }
+  }
+  return n;
+}
+
+
 uint32_t parseUInt(Token*token){
   if(token->type != Number) compError("Number Expected",token);
   char*cp = token->buff;
@@ -399,6 +431,10 @@ bool nextTokenCheckConcat(CompContext*ctx){
 
 void nextTokenEnforceNewlineEOF(CompContext*ctx){
   ctx->token = ctx->token->next;
+  enforceNewlineEOF(ctx);
+}
+
+void enforceNewlineEOF(CompContext*ctx){
   if(ctx->token && ctx->token->type != Newline)
     compError("Newline or EOF expected",ctx->token);
 }

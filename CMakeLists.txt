@@ -17,6 +17,7 @@ add_executable(rvasm
     src/section.c
     src/symbol.c
     src/constants.c
+    src/lr.c
     src/riscv.c
     src/riscv_zicsr.c
     src/riscv_c.c

@@ -10,6 +10,8 @@
 #include"section.h"
 #include"symbol.h"
 #include"constants.h"
+#include"lr.h"
+
 
 #include<stdlib.h>
 #include<stdio.h>
@@ -31,18 +33,8 @@ void compPass(CompContext*ctx){
     if(tryCompSymbolDirectives(ctx))
       continue;
 
-
-    // Common Directives
-    if(tokenIdentComp(".equ",ctx->token)){
-      nextTokenEnforceExistence(ctx);
-      Token*nameToken = ctx->token;
-      nextTokenEnforceComma(ctx);
-      if(ctx->pass == INDEX)
-	addConstant(ctx,nameToken,ctx->token);
-      nextTokenEnforceNewlineEOF(ctx);
+    if(tryCompEquSet(ctx))
       continue;
-    }
-
 
     if(tokenIdentComp(".align",ctx->token)){
       if(!ctx->section)
@@ -50,47 +42,45 @@ void compPass(CompContext*ctx){
 
       nextTokenEnforceExistence(ctx);
 
-      Token*valTok = getNumberOrConstant(ctx);
-      if(!valTok)
-	compError("Number or Constant expected",ctx->token);
+      if(!lrParseNumConstExpression(ctx))
+	compError("Arithmetic Expression expeted",ctx->token);
+      enforceNewlineEOF(ctx);
 
       if(ctx->pass==INDEX){
-	ctx->section->size = align(ctx->section->size, parseUImm(valTok, 5));
+	ctx->section->size = align(ctx->section->size, getUImm(ctx, 5));
       }
       else if(ctx->section->shdr.sh_type == SHT_NOBITS){
-	ctx->section->index = align(ctx->section->index, parseUImm(valTok, 5));
+	ctx->section->index = align(ctx->section->index, getUImm(ctx, 5));
       }
       else{
-	uint32_t align_mask = (1 << parseUImm(valTok, 5)) -1;
+	uint32_t align_mask = (1 << getUImm(ctx, 5)) -1;
 	while(ctx->section->index & align_mask){
 	  ctx->section->buff[ctx->section->index] = 0;
 	  ctx->section->index ++;
 	}
       }
-      nextTokenEnforceNewlineEOF(ctx);
       continue;
     }
 
-    
-    // BSS
-
     if(ctx->section){
 
-    if(ctx->section->shdr.sh_type == SHT_PROGBITS){
-      if(ctx->section->shdr.sh_flags & SHF_EXECINSTR){
-	if(compRV(ctx))
+      if(ctx->section->shdr.sh_type == SHT_PROGBITS){
+	if(ctx->section->shdr.sh_flags & SHF_EXECINSTR){
+	  if(compRV(ctx))
+	    continue;
+	}
+	else{
+	  if(compData(ctx))
+	    continue;
+	}
+      }
+      else if(ctx->section->shdr.sh_type == SHT_NOBITS){
+	if(compBSS(ctx))
 	  continue;
       }
-      else{
-	if(compData(ctx))
-	  continue;
-      }
-    }else if(ctx->section->shdr.sh_type == SHT_NOBITS){
-      if(compBSS(ctx))
-	continue;
-    }
 
     }
+
 
     compError("Unexpected Token in Main Switch",ctx->token);
 
