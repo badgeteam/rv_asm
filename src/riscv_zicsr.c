@@ -1,5 +1,6 @@
 #include"riscv_zicsr.h"
 #include"riscv.h"
+#include"lr.h"
 #include"token.h"
 
 uint32_t parseCsr(struct Token*token){
@@ -408,7 +409,14 @@ void encodeCsrRegister(CompContext*ctx,uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  enc += parseCsr(ctx->token) << 20;
+  if(lrParseExpression(ctx)){
+    enc += getUImm(ctx,12) << 20;
+    ctx->token = ctx->token->prev;
+  }
+  else if(ctx->token->type == Identifier){
+    enc += parseCsr(ctx->token) << 20;
+  }
+  else compError("CSR Reg or Arithmetic Expression expected",ctx->token);
   nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 15;
   ctx->token = ctx->token->next;
@@ -419,13 +427,18 @@ void encodeCsrImmediate(CompContext*ctx,uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(ctx->token->type == Identifier)
+  if(lrParseExpression(ctx)){
+    enc += getUImm(ctx,12) << 20;
+    ctx->token = ctx->token->prev;
+  }
+  else if(ctx->token->type == Identifier){
     enc += parseCsr(ctx->token) << 20;
-  else if(ctx->token->type == Number)
-    enc += parseUImm(ctx->token,12);
+  }
+  else compError("CSR Reg or Arithmetic Expression expected",ctx->token);
   nextTokenEnforceComma(ctx);
-  enc += parseUImm(ctx->token,5) << 15;
-  ctx->token = ctx->token->next;
+  if(!lrParseExpression(ctx))
+    compError("Arithmetic Expression Expected",ctx->token);
+  enc += getUImm(ctx,5) << 15;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 

@@ -3,6 +3,7 @@
 #include"token.h"
 #include"section.h"
 #include"symbol.h"
+#include"lr.h"
 #include<stdlib.h>
 
 
@@ -97,10 +98,10 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
       goto fail;
   }
   else if(type == R_RISCV_32){
-    if(!tokenIdentComp("word",ctx->token))
+    if(!tokenStrComp("32",ctx->token))
       goto fail;
   }else if(type == R_RISCV_32_PCREL){
-    if(!tokenIdentComp("pcrel_word",ctx->token))
+    if(!tokenIdentComp("pcrel_32",ctx->token))
       goto fail;
   }
   else if(type == R_RISCV_GOT_HI20){
@@ -118,22 +119,14 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   nameToken = ctx->token;
   nextTokenEnforceExistence(ctx);
 
-  if(ctx->token->type == Number){
-    addend = parseInt(ctx->token);
-    nextTokenEnforceExistence(ctx);
-  }else if(ctx->token->type == Plus){
-    nextTokenEnforceExistence(ctx);
-    addend = parseInt(ctx->token);
-    nextTokenEnforceExistence(ctx);
-  }else if(ctx->token->type == Minus){
-    nextTokenEnforceExistence(ctx);
-    addend = - parseInt(ctx->token);
-    nextTokenEnforceExistence(ctx);
+
+  if(lrParseExpression(ctx)){
+    addend = getInt(ctx);
   }
 
   if(ctx->token->type != BracketOut)
     goto fail;
-//  ctx->token = ctx->token->next;
+  ctx->token = ctx->token->next;
 
 
   // Apply Relocation

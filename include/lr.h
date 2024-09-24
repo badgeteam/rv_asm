@@ -1,7 +1,8 @@
 #pragma once
 #include"common_types.h"
 
-bool lrParseNumConstExpression(CompContext*ctx);
+// Does advance after the last token
+bool lrParseExpression(CompContext*ctx);
 
 uint32_t getUInt(CompContext*ctx);
 int32_t getInt(CompContext*ctx);

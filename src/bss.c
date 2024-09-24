@@ -9,7 +9,7 @@ bool compBSS(CompContext*ctx){
   if (tokenIdentComp(".space",ctx->token)) {
     nextTokenEnforceExistence(ctx);
   
-    if(!lrParseNumConstExpression(ctx))
+    if(!lrParseExpression(ctx))
       compError("Arithmetic Expression expected",ctx->token);
     enforceNewlineEOF(ctx);
 

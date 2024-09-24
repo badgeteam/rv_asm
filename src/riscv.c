@@ -3,7 +3,7 @@
 
 #include"riscv_zicsr.h"
 #include"riscv_c.h"
-
+#include"lr.h"
 #include"token.h"
 #include"relocation.h"
 #include"symbol.h"
@@ -160,100 +160,72 @@ void insert4ByteCheckLineEnd(CompContext*ctx, uint32_t enc){
 void encodeLui(CompContext*ctx){
   uint32_t enc = 0x37;
   Symbol*sym;
-
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-
-  if(ctx->token->type == Number)
-    enc += (parseInt(ctx->token) >> 12) << 12;
-
+  if(lrParseExpression(ctx))
+    enc += getInt(ctx) & 0xFFFFF000;
   else if(tryCompRelocation(ctx,R_RISCV_HI20));
-
   else if((sym = getSymbol(ctx,ctx->token)))
     addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_HI20,0);
-
   else compError("Offset, \%hi Relocation or Symbol expected",ctx->token);
-
-  ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeAuipc(CompContext*ctx){
   uint32_t enc = 0x17;
   Symbol*sym;
-
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-
-  if(ctx->token->type == Number)
-    enc += (parseInt(ctx->token) >> 12) << 12;
-
+  if(lrParseExpression(ctx))
+    enc += getInt(ctx) & 0xFFFF000;
   else if(tryCompRelocation(ctx,R_RISCV_PCREL_HI20));
   else if(tryCompRelocation(ctx,R_RISCV_GOT_HI20));
   else if((sym=getSymbol(ctx,ctx->token)))
       addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_PCREL_HI20,0);
-
   else compError("Offset, \%pcrel_hi Relocation or Symbol expected",ctx->token);
-
-  ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 
 }
 
-
 void encodeU(CompContext*ctx, uint32_t enc){
   Symbol*sym;
-
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-
-  if(ctx->token->type == Number){
-    uint32_t offset = parseImm(ctx->token,21);
+  if(lrParseExpression(ctx)){
+    uint32_t offset = getImm(ctx,21);
     enc += ((offset >> 1) & 0x3FF) << 21;
     enc += ((offset >> 11) & 1) << 20;
     enc += ((offset >> 12) & 0xFF) << 12;
     enc += ((offset >> 20) & 1) << 31;
   }
-
   else if(tryCompRelocation(ctx,R_RISCV_JAL));
-
   else if((sym = getSymbol(ctx,ctx->token)))
     addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_JAL,0);
-
   else compError("Offset, \%jal Relocation or Symbol expected",ctx->token);
-
-  ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
 void encodeB(CompContext*ctx,uint32_t enc){
   Symbol*sym;
-
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 15;
   nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 20;
   nextTokenEnforceComma(ctx);
-
-  if(ctx->token->type == Number){
-    uint32_t offset = parseImm(ctx->token,13);
+  if(lrParseExpression(ctx)){
+    uint32_t offset = getImm(ctx,13);
     enc += ((offset >> 1) & 0x0F) << 8;
     enc += ((offset >> 5) & 0x3F) << 25;
     enc += ((offset >> 11) & 1) << 7;
     enc += ((offset >> 12) & 1) << 31;
   }
-
   else if(tryCompRelocation(ctx,R_RISCV_BRANCH));
-
   else if((sym = getSymbol(ctx, ctx->token)))
     addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_BRANCH,0);
-
   else compError("Offset, \%branch Relocation or Symbol expected",ctx->token);
-
-  ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
@@ -261,16 +233,14 @@ void encodeStore(CompContext*ctx,uint32_t enc,bool float_reg){
   nextTokenEnforceExistence(ctx);
   enc += float_reg ? parseFloatReg(ctx->token) : parseIntReg(ctx->token) << 20;	// rs2 
   nextTokenEnforceComma(ctx);
-
-  if(ctx->token->type == Number){
-    uint32_t imm = parseImm(ctx->token,12);
+  if(lrParseExpression(ctx)){
+    uint32_t imm = getImm(ctx,12);
     enc += (imm & 0x1F) << 7;
     enc += (imm >> 5) << 25;
   }
   else if(tryCompRelocation(ctx,R_RISCV_LO12_S));
   else tryCompRelocation(ctx,R_RISCV_PCREL_LO12_S);
-  
-  nextTokenEnforceExistence(ctx);
+  enforceExistence(ctx);
   enc += parseBracketReg(ctx) << 15;	// rs1
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
@@ -280,12 +250,11 @@ void encodeLoadJalr(CompContext*ctx,uint32_t enc,bool float_reg){
   nextTokenEnforceExistence(ctx);
   enc += float_reg ? parseFloatReg(ctx->token) : parseIntReg(ctx->token) << 7;	// rd
   nextTokenEnforceComma(ctx);
-  if(ctx->token->type == Number)
-    enc += parseImm(ctx->token,12) << 20;
+  if(lrParseExpression(ctx))
+    enc += getImm(ctx,12) << 20;
   else if(tryCompRelocation(ctx,R_RISCV_LO12_I));
   else tryCompRelocation(ctx,R_RISCV_PCREL_LO12_I);
-  
-  nextTokenEnforceExistence(ctx);
+  enforceExistence(ctx);
   enc += parseBracketReg(ctx) << 15;	// rs1
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
@@ -309,14 +278,13 @@ void encodeI(CompContext*ctx,uint32_t enc){
   enc += parseIntReg(ctx->token) << 15;
   if(ctx->token->next && ctx->token->next->type != Newline){
     nextTokenEnforceComma(ctx);
-    if(ctx->token->type == Number)
-      enc += parseImm(ctx->token,12) << 20;
+    if(lrParseExpression(ctx))
+      enc += getImm(ctx,12) << 20;
     else if(tryCompRelocation(ctx,R_RISCV_LO12_I));
     else if(tryCompRelocation(ctx,R_RISCV_PCREL_LO12_I));
     else
       compError("The offset of an I encoding has to be a number, a \%lo(), a \%pcrel_lo() or nothing",ctx->token);
   }
-  ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
@@ -326,7 +294,9 @@ void encodeShiftImmediate(CompContext*ctx,uint32_t enc,uint32_t shamt){
   nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 15;
   nextTokenEnforceComma(ctx);
-  enc += parseUImm(ctx->token,shamt) << 20;
+  if(!lrParseExpression(ctx))
+    compError("shift amount expected",ctx->token);
+  enc += getUImm(ctx,shamt) << 20;
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
@@ -407,10 +377,10 @@ bool compRV32M(CompContext*ctx){
 }
 
 uint32_t parseAtomicAqRl(struct Token*token,uint32_t offset){
-  if(tokenIdentCompPartialCI("",token,offset))return 0;
+  if(tokenIdentCompPartialCI(".aq.rl",token,offset))return 3;
   if(tokenIdentCompPartialCI(".aq",token,offset))return 2;
   if(tokenIdentCompPartialCI(".rl",token,offset))return 1;
-  if(tokenIdentCompPartialCI(".aq.rl",token,offset))return 3;
+  if(tokenIdentCompPartialCI("",token,offset))return 0;
   compError("Unknown Aq Rl Flag",token);
   return 0;
 }

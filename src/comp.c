@@ -42,7 +42,7 @@ void compPass(CompContext*ctx){
 
       nextTokenEnforceExistence(ctx);
 
-      if(!lrParseNumConstExpression(ctx))
+      if(!lrParseExpression(ctx))
 	compError("Arithmetic Expression expeted",ctx->token);
       enforceNewlineEOF(ctx);
 

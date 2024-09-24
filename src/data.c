@@ -58,7 +58,7 @@ void encodeAscii(CompContext*ctx, bool zero_terminated){
 void encodeZeros(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
 
-  if(!lrParseNumConstExpression(ctx))
+  if(!lrParseExpression(ctx))
     compError("Arithmetic Expression expected",ctx->token);
   enforceNewlineEOF(ctx);
   uint32_t size = getUInt(ctx);
@@ -81,7 +81,7 @@ void encodeByte(CompContext*ctx){
     if(ctx->pass == INDEX)
       ctx->section->size ++;
     else{
-      if(lrParseNumConstExpression(ctx)){
+      if(lrParseExpression(ctx)){
 	ctx->token = ctx->token->prev;
 	ctx->section->buff[ctx->section->index] = getUImm(ctx,8);
       }else if(ctx->token->type == Char){
@@ -114,8 +114,7 @@ void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
 
   do{
 
-    if(lrParseNumConstExpression(ctx)){
-      ctx->token = ctx->token->prev;
+    if(lrParseExpression(ctx)){
       if(log2size == 1){
 	if(ctx->lrHead->sign == 1){
 	  *((uint16_t*)(ctx->section->buff + ctx->section->index)) = getUImm(ctx,16);
@@ -129,25 +128,24 @@ void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
 	  *((int32_t*)(ctx->section->buff + ctx->section->index)) = getInt(ctx);
 	}
       }
-
-
     }
-
-
     else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32));
     else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32_PCREL));
 
     else if(log2size==2)
-      compError("Number, Constant, \%word or \%pcrel_word relocation expected",ctx->token);
+      compError("Number, Constant, \%32 or \%pcrel_32 relocation expected",ctx->token);
     else
       compError("Number or Constant expectid",ctx->token);
 
+
+    
 
     if(ctx->pass == INDEX)
       ctx->section->size += 1<<log2size;
     else
       ctx->section->index += 1<<log2size;
 
+    ctx->token = ctx->token->prev;
   }
   while(nextTokenCheckConcat(ctx));
 }

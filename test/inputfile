@@ -1,8 +1,13 @@
 
-.equ c1, 5 + ( 5 * 2 + 2 ) 
-.equ c2, c1 - 20
-.equ c3, - 7
+.equ c3, 7
 
 .data
-.zero 5+4 - c3
+
+symbol:
+.word %pcrel_32(symbol + c3 * ( - 5 ) )
+
+
+.text
+
+  addi t0, t0, 5+5
 

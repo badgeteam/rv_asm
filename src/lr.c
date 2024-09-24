@@ -40,12 +40,14 @@ bool lrReduceBrackets(CompContext*ctx){
   if( !lr || lr->type != Lr_Number )
     return false;
   uint32_t value = lr->value;
+  int sign = lr->sign;
   lr = lr->next;
   if( !lr || lr->type != Lr_BracketIn )
     return false;
   lrPop(ctx);
   lrPop(ctx);
   lr->value = value;
+  lr->sign = sign;
   lr->type = Lr_Number;
   lr->token = NULL;
   return true;
@@ -117,7 +119,7 @@ bool lrReduceBinaryOperator(CompContext*ctx, LrType type){
     default:
       return false;
   }
-  lr->value = lr->sign == 1 ? lr->value : - lr->value;
+  //lr->value = lr->sign == 1 ? lr->value : - lr->value;
   lrPop(ctx);
   lrPop(ctx);
   return true;
@@ -133,10 +135,15 @@ bool lrReduceUnaryOperator(CompContext*ctx, LrType type){
   lr = lr->next;
   if(!lr || lr->type != type)
     return false;
-  if(type != Lr_Sub)
-    return false;
+
+  if(type == Lr_Add);
+  else if(type == Lr_Sub)
+    sign = -sign;
+  else
+   return false;
+
   lr->value = value;
-  lr->sign = - sign;
+  lr->sign = sign;
   lr->token = token;
   lr->type = Lr_Number;
   lrPop(ctx);
@@ -163,7 +170,7 @@ LrType lrLookahead(CompContext*ctx){
     case Identifier:
       if(getConstant(ctx,ctx->token))
 	return Lr_Constant;
-      return Lr_Symbol;
+      return 0;
     case BracketIn:
       return Lr_BracketIn;
     case BracketOut:
@@ -191,7 +198,6 @@ bool lrShift(CompContext*ctx){
     lrPush(ctx, Lr_Number, parseNumber(ctx->token), 1, NULL);
 
   else if( type == Lr_Constant ){
-    Constant*con = getConstant(ctx,ctx->token);
     lrPush(ctx,Lr_Constant, 0, 0, ctx->token);
   }
 
@@ -227,7 +233,7 @@ bool lrNumConstAccept(CompContext*ctx){
 }
 
 
-bool lrParseNumConstExpression(CompContext*ctx){
+bool lrParseExpression(CompContext*ctx){
   // Cleanup Old Stuff
   ctx->lrBracketDepth = 0;
   while(ctx->lrHead)
@@ -238,9 +244,9 @@ bool lrParseNumConstExpression(CompContext*ctx){
 
   // LR1
   while(true){
-
+#ifdef DEBUL_LR
     printLrTokenList(ctx->lrHead);
-
+#endif
     if(lrReduceConstant(ctx)) continue;
     if(lrReduceBrackets(ctx)) continue;
 
@@ -277,6 +283,7 @@ bool lrParseNumConstExpression(CompContext*ctx){
     }
     if(lrReduceBinaryOperator(ctx,Lr_Add)) continue;
 
+    if(lrReduceUnaryOperator(ctx,Lr_Add)) continue;
     if(lrReduceUnaryOperator(ctx,Lr_Sub)) continue;
 
     if(lrShift(ctx))
@@ -284,12 +291,13 @@ bool lrParseNumConstExpression(CompContext*ctx){
 
     break;
   }
-
-//  printLrTokenList(ctx->lrHead);
-
+#ifdef DEBUL_LR
+  printLrTokenList(ctx->lrHead);
+#endif
   if(lrNumConstAccept(ctx)){
+#ifdef DEBUG_LR
     printf("Lr Accepted Value = %d Sign = %d\n\n", ctx->lrHead->value, ctx->lrHead->sign);
-
+#endif
     return true;
   }
   ctx->token = backupToken;
@@ -323,6 +331,8 @@ uint32_t getImm(CompContext*ctx, uint32_t bits){
   return n & ( ( 1 << bits ) -1 );
 }
 
+//#define DEBUG_LR
+#ifdef DEBUL_LR
 
 char*getLrTypeName(LrType type){
   switch(type){
@@ -363,3 +373,5 @@ void printLrTokenList(LrToken*lr){
   }
   printf("\n");
 }
+
+#endif

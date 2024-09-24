@@ -258,6 +258,19 @@ bool tokenComp(Token*token1,Token*token2){
   }
 }
 
+bool tokenStrComp(char*str,Token*token){
+  char c1, c2;
+  for(char*tokstr = token->buff; tokstr<token->buffTop; tokstr++){
+    if(*str == '\0')
+      return false;
+    c1 = *str;
+    c2 = *tokstr;
+    if(c1!=c2)return false;
+    str++;
+  }
+  return *str=='\0'; 
+}
+
 bool tokenIdentComp(char*str,Token*token){
   if(token->type != Identifier)return false;
   char c1, c2;
@@ -400,7 +413,10 @@ uint32_t parseImm(Token*token,uint32_t length){
   return z & ((1<<length)-1);
 }
 
-
+void enforceExistence(CompContext*ctx){
+  if(!ctx->token->next)
+    compError("Unexpected EOF",ctx->token);
+}
 
 void nextTokenEnforceExistence(CompContext*ctx){
   if(!ctx->token->next)
@@ -499,6 +515,10 @@ void compWarning(char*msg,struct Token*token){
 }
 
 void compError(char*msg,struct Token*token){
+  if(!token){
+    fprintf(stderr,"Comp Error\n%s\n",msg);
+    return;
+  }
 	fprintf(stderr,"Comp Error in file %s line %d.\n",token->file->filename,token->line);
 	
 	for(char*cp = token->buff; cp<token->buffTop; cp++)

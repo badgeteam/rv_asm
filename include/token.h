@@ -6,8 +6,10 @@
 // Reads files recursively and creates a Tokenchain
 Token*tokenizeFile(char*filename);
 
-
+// Compares 2 Tokens
 bool tokenComp(Token*token1,Token*token2);
+// Compare Token Content with strinng
+bool tokenStrComp(char*str, Token*token);
 // Checks if the token is of type Ident and compares the strings
 bool tokenIdentComp(char*str, Token*token);
 
@@ -25,18 +27,18 @@ bool tokenIdentCompPartial(char*str,Token*token,uint32_t offset);
 uint32_t parseUInt(Token*token);
 
 // Parses a signed Integer or throws an error
-int32_t parseInt(Token*token);
+//int32_t parseInt(Token*token);
 
 // Parses an unsigned Immediate Number of a specific length or throws an error
-uint32_t parseUImm(Token*token, uint32_t length);
+//uint32_t parseUImm(Token*token, uint32_t length);
 
 // Parses a signed Immediate Number of a specific length or throws an error
-uint32_t parseImm(Token*teken, uint32_t length);
+//uint32_t parseImm(Token*teken, uint32_t length);
 
 
 uint32_t parseNumber(Token*token);
 
-
+void enforceExistence(CompContext*ctx);
 void nextTokenEnforceExistence(CompContext*ctx);
 void nextTokenEnforceComma(CompContext*ctx);
 bool nextTokenCheckConcat(CompContext*ctx);
