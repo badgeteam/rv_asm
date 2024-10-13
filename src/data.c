@@ -5,6 +5,7 @@
 #include"util.h"
 #include"relocation.h"
 #include"lr.h"
+#include"symbol.h"
 
 #include<stdio.h>
 
@@ -58,10 +59,10 @@ void encodeAscii(CompContext*ctx, bool zero_terminated){
 void encodeZeros(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
 
-  if(!lrParseExpression(ctx))
+  if(!lrParseExpression(ctx, false))
     compError("Arithmetic Expression expected",ctx->token);
   enforceNewlineEOF(ctx);
-  uint32_t size = getUInt(ctx);
+  uint32_t size = lrGetUInt(ctx);
 
   if(ctx->pass == INDEX)
     ctx->section->size += size;
@@ -81,9 +82,9 @@ void encodeByte(CompContext*ctx){
     if(ctx->pass == INDEX)
       ctx->section->size ++;
     else{
-      if(lrParseExpression(ctx)){
+      if(lrParseExpression(ctx, false)){
 	ctx->token = ctx->token->prev;
-	ctx->section->buff[ctx->section->index] = getUImm(ctx,8);
+	ctx->section->buff[ctx->section->index] = lrGetUImm(ctx,8);
       }else if(ctx->token->type == Char){
 	ctx->section->buff[ctx->section->index] = parseChar(ctx->token->buff + 1);
       }else {
@@ -114,32 +115,29 @@ void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
 
   do{
 
-    if(lrParseExpression(ctx)){
-      if(log2size == 1){
-	if(ctx->lrHead->sign == 1){
-	  *((uint16_t*)(ctx->section->buff + ctx->section->index)) = getUImm(ctx,16);
-	}else{
-	  *((uint16_t*)(ctx->section->buff + ctx->section->index)) = getImm(ctx,16);
-	}
-      }else if(log2size == 2){
-	if(ctx->lrHead->sign == 1){
-	  *((uint32_t*)(ctx->section->buff + ctx->section->index)) = getUInt(ctx);
-	}else{
-	  *((int32_t*)(ctx->section->buff + ctx->section->index)) = getInt(ctx);
-	}
-      }
+    if(log2size == 1){
+      if(!lrParseExpression(ctx,false))
+	compError("Arithmetic Expression expected",ctx->token);
+      if(lrGetNumberSign(ctx) == 1)
+        *((uint16_t*)(ctx->section->buff+ctx->section->index)) = (uint16_t)lrGetUImm(ctx, 16);
+      else
+        *((uint16_t*)(ctx->section->buff+ctx->section->index)) = (uint16_t)lrGetImm(ctx, 16); 
     }
-    else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32));
-    else if(log2size==2 && tryCompRelocation(ctx,R_RISCV_32_PCREL));
 
-    else if(log2size==2)
-      compError("Number, Constant, \%32 or \%pcrel_32 relocation expected",ctx->token);
-    else
-      compError("Number or Constant expectid",ctx->token);
-
-
-    
-
+    else if(log2size == 2){
+      if(lrParseExpression(ctx,false)){
+	if(lrGetNumberSign(ctx) == 1)
+	  *((uint32_t*)(ctx->section->buff+ctx->section->index)) = lrGetUInt(ctx);
+	else
+	  *((int32_t*) (ctx->section->buff+ctx->section->index)) = lrGetInt(ctx);
+      }
+      else if(tryCompImplicitRelocation(ctx, R_RISCV_32));
+      else if(tryCompImplicitRelocation(ctx, R_RISCV_32_PCREL));
+      else if(tryCompRelocation(ctx, R_RISCV_32));
+      else if(tryCompRelocation(ctx, R_RISCV_32_PCREL));
+      else compError("Unexpected Arguments",ctx->token);
+      
+    }
     if(ctx->pass == INDEX)
       ctx->section->size += 1<<log2size;
     else

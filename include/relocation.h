@@ -3,9 +3,9 @@
 
 void addRelaEntry(CompContext*ctx,uint32_t offset, Symbol*sym, uint32_t type, int32_t addend);
 
-/* Does not advance after the last token
- *
- */
+
+bool tryCompImplicitRelocation(CompContext*ctx, uint32_t type);
+
 bool tryCompRelocation(CompContext*ctx, uint32_t type);
 
 

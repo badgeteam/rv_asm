@@ -51,11 +51,37 @@ void addRelaEntry(CompContext*ctx,uint32_t offset, Symbol*sym, uint32_t type, in
   }
 }
 
+bool isRelTypePcrel(uint32_t type){
+  switch(type){
+    case R_RISCV_PCREL_HI20:
+    case R_RISCV_PCREL_LO12_I:
+    case R_RISCV_PCREL_LO12_S:
+    case R_RISCV_32_PCREL:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool tryCompImplicitRelocation(CompContext*ctx,uint32_t type){
+  Token*backupToken = ctx->token;
+  if(!lrParseExpression(ctx,true)) return false;
+  if(isRelTypePcrel(type) != lrIsPcrel(ctx)){
+    ctx->token = backupToken;
+    return false;
+  }
+  addRelaEntry(
+      ctx,
+      ctx->section->index,
+      getSymbol(ctx,lrGetSymbol(ctx)),
+      type,
+      lrGetInt(ctx)
+      );
+  return true;
+}
 
 bool tryCompRelocation(CompContext*ctx,uint32_t type){
   struct Token*backupToken = ctx->token;
-  struct Token*nameToken = NULL;
-  int32_t addend = 0;
   if(ctx->token->type != Percent)
     goto fail;
   nextTokenEnforceExistence(ctx);
@@ -113,16 +139,11 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   nextTokenEnforceExistence(ctx);
   if(ctx->token->type != BracketIn)
     goto fail;
-  nextTokenEnforceExistence(ctx);
-  if(ctx->token->type != Identifier)
+
+  if(!lrParseExpression(ctx, true))
     goto fail;
-  nameToken = ctx->token;
-  nextTokenEnforceExistence(ctx);
-
-
-  if(lrParseExpression(ctx)){
-    addend = getInt(ctx);
-  }
+  if(lrIsPcrel(ctx))
+    compError("Dot Symbols cannot occur inside a %relocation() statement",ctx->token);
 
   if(ctx->token->type != BracketOut)
     goto fail;
@@ -130,7 +151,7 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
 
 
   // Apply Relocation
-  addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,nameToken),type,addend);
+  addRelaEntry(ctx,ctx->section->index,getSymbol(ctx,lrGetSymbol(ctx)),type,lrGetInt(ctx));
   return true;
 fail:
   ctx->token = backupToken;

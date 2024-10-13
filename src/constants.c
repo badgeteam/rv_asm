@@ -27,7 +27,7 @@ bool tryCompEquSet(CompContext*ctx){
   if(nameToken->type != Identifier)
     compError("Identifier expected",nameToken);
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseExpression(ctx, false))
     compError("Unable to parse Expression",ctx->token);
   enforceNewlineEOF(ctx);
   setConstant(ctx,nameToken,ctx->lrHead->value,ctx->lrHead->sign);

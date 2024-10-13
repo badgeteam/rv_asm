@@ -80,14 +80,17 @@ typedef struct Constant{
 }Constant;
 
 typedef enum LrType{
-//  Lr_ValueMask    = 0x000F,
+  Lr_Mask_Value   = 0x000F,
   Lr_Number       = 0x0001,
   Lr_Constant     = 0x0002,
   Lr_Symbol       = 0x0004,
-//  Lr_BracketMask  = 0x00F0,
+  Lr_DotSymbol    = 0x0008,
+
+//  Lr_Mask_Bracket = 0x00F0,
   Lr_BracketIn    = 0x0010,
   Lr_BracketOut   = 0x0020,
-//  Lr_OperandMask  = 0xFF00,
+
+//  Lr_Mask_Operand = 0xFF00,
   Lr_Add          = 0x0100,
   Lr_Sub          = 0x0200,
   Lr_Mul          = 0x0400,

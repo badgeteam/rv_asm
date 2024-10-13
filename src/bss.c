@@ -9,14 +9,14 @@ bool compBSS(CompContext*ctx){
   if (tokenIdentComp(".space",ctx->token)) {
     nextTokenEnforceExistence(ctx);
   
-    if(!lrParseExpression(ctx))
+    if(!lrParseExpression(ctx, false))
       compError("Arithmetic Expression expected",ctx->token);
     enforceNewlineEOF(ctx);
 
     if(ctx->pass == INDEX)
-      ctx->section->size += getUInt(ctx);
+      ctx->section->size += lrGetUInt(ctx);
     if(ctx->pass == COMP){
-      ctx->section->index += getUInt(ctx);
+      ctx->section->index += lrGetInt(ctx);
     }
 
     return true;

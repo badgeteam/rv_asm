@@ -6,7 +6,7 @@ void initSymbolList(CompContext*ctx);
 void symbolPassPostIndex(CompContext*ctx);
 void symbolPassPostComp(CompContext*ctx);
 
-Symbol*getSymbol(CompContext*ctx,struct Token*nameToken);
+Symbol*getSymbol(CompContext*ctx,Token*nameToken);
 
 bool tryCompSymbolDirectives(CompContext*ctx);
 

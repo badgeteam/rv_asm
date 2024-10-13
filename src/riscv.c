@@ -163,11 +163,10 @@ void encodeLui(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx))
-    enc += getInt(ctx) & 0xFFFFF000;
+  if(lrParseExpression(ctx,false))
+    enc += lrGetInt(ctx) & 0xFFFFF000;
   else if(tryCompRelocation(ctx,R_RISCV_HI20));
-  else if((sym = getSymbol(ctx,ctx->token)))
-    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_HI20,0);
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_HI20));
   else compError("Offset, \%hi Relocation or Symbol expected",ctx->token);
   insert4ByteCheckLineEnd(ctx,enc);
 }
@@ -178,15 +177,13 @@ void encodeAuipc(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx))
-    enc += getInt(ctx) & 0xFFFF000;
+  if(lrParseExpression(ctx, false))
+    enc += lrGetInt(ctx) & 0xFFFF000;
   else if(tryCompRelocation(ctx,R_RISCV_PCREL_HI20));
   else if(tryCompRelocation(ctx,R_RISCV_GOT_HI20));
-  else if((sym=getSymbol(ctx,ctx->token)))
-      addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_PCREL_HI20,0);
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_PCREL_HI20));
   else compError("Offset, \%pcrel_hi Relocation or Symbol expected",ctx->token);
   insert4ByteCheckLineEnd(ctx,enc);
-
 }
 
 void encodeU(CompContext*ctx, uint32_t enc){
@@ -194,16 +191,15 @@ void encodeU(CompContext*ctx, uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx)){
-    uint32_t offset = getImm(ctx,21);
+  if(lrParseExpression(ctx,false)){
+    uint32_t offset = lrGetImm(ctx,21);
     enc += ((offset >> 1) & 0x3FF) << 21;
     enc += ((offset >> 11) & 1) << 20;
     enc += ((offset >> 12) & 0xFF) << 12;
     enc += ((offset >> 20) & 1) << 31;
   }
   else if(tryCompRelocation(ctx,R_RISCV_JAL));
-  else if((sym = getSymbol(ctx,ctx->token)))
-    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_JAL,0);
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_JAL));
   else compError("Offset, \%jal Relocation or Symbol expected",ctx->token);
   insert4ByteCheckLineEnd(ctx,enc);
 }
@@ -215,43 +211,46 @@ void encodeB(CompContext*ctx,uint32_t enc){
   nextTokenEnforceComma(ctx);
   enc += parseIntReg(ctx->token) << 20;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx)){
-    uint32_t offset = getImm(ctx,13);
+  if(lrParseExpression(ctx,false)){
+    uint32_t offset = lrGetImm(ctx,13);
     enc += ((offset >> 1) & 0x0F) << 8;
     enc += ((offset >> 5) & 0x3F) << 25;
     enc += ((offset >> 11) & 1) << 7;
     enc += ((offset >> 12) & 1) << 31;
   }
   else if(tryCompRelocation(ctx,R_RISCV_BRANCH));
-  else if((sym = getSymbol(ctx, ctx->token)))
-    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_BRANCH,0);
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_BRANCH));
   else compError("Offset, \%branch Relocation or Symbol expected",ctx->token);
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
+// TODO Check for intact Symtax (Lr Register Collision)
 void encodeStore(CompContext*ctx,uint32_t enc,bool float_reg){
   nextTokenEnforceExistence(ctx);
   enc += float_reg ? parseFloatReg(ctx->token) : parseIntReg(ctx->token) << 20;	// rs2 
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx)){
-    uint32_t imm = getImm(ctx,12);
+  if(lrParseExpression(ctx,false)){
+    uint32_t imm = lrGetImm(ctx,12);
     enc += (imm & 0x1F) << 7;
     enc += (imm >> 5) << 25;
   }
   else if(tryCompRelocation(ctx,R_RISCV_LO12_S));
-  else tryCompRelocation(ctx,R_RISCV_PCREL_LO12_S);
+  else if(tryCompRelocation(ctx,R_RISCV_PCREL_LO12_S));
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_LO12_S));
+  else tryCompImplicitRelocation(ctx,R_RISCV_PCREL_LO12_S);
   enforceExistence(ctx);
   enc += parseBracketReg(ctx) << 15;	// rs1
   ctx->token = ctx->token->next;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 
+// TODO Check for intact Syntax (Lr Register Collision)
 void encodeLoadJalr(CompContext*ctx,uint32_t enc,bool float_reg){
   nextTokenEnforceExistence(ctx);
   enc += float_reg ? parseFloatReg(ctx->token) : parseIntReg(ctx->token) << 7;	// rd
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx))
-    enc += getImm(ctx,12) << 20;
+  if(lrParseExpression(ctx,false))
+    enc += lrGetImm(ctx,12) << 20;
   else if(tryCompRelocation(ctx,R_RISCV_LO12_I));
   else tryCompRelocation(ctx,R_RISCV_PCREL_LO12_I);
   enforceExistence(ctx);
@@ -278,7 +277,7 @@ void encodeI(CompContext*ctx,uint32_t enc){
   enc += parseIntReg(ctx->token) << 15;
   if(ctx->token->next && ctx->token->next->type != Newline){
     nextTokenEnforceComma(ctx);
-    if(lrParseExpression(ctx))
+    if(lrParseExpression(ctx, false))
       enc += getImm(ctx,12) << 20;
     else if(tryCompRelocation(ctx,R_RISCV_LO12_I));
     else if(tryCompRelocation(ctx,R_RISCV_PCREL_LO12_I));
