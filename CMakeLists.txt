@@ -10,6 +10,7 @@ add_executable(rvasm
     src/comp.c
     src/data.c
     src/main.c
+    src/misc.c
     src/util.c
     src/export.c
     src/token.c
