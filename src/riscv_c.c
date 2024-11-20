@@ -83,9 +83,9 @@ void encodeRvcCiLoadSp(CompContext*ctx, uint16_t enc, uint32_t imm_shift, bool f
     compError("rd must not be 0",ctx->token);
   enc += n << 2;
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression expected",ctx->token);
-  n = getImm(ctx,6 + imm_shift);
+  n = lrGetImm(ctx,6 + imm_shift);
   if(imm_shift == 2){
     if((n&3)!=0)compError("Offset must be divisible by 4",ctx->token);
     enc += ((n>>6)&3)<<2;
@@ -107,9 +107,9 @@ void encodeRvcCss(CompContext*ctx, uint16_t enc, uint32_t imm_shift, bool float_
   nextTokenEnforceExistence(ctx);
   enc += (float_reg ? parseFloatReg(ctx->token) : parseIntReg(ctx->token)) << 2;
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression expected",ctx->token);
-  uint32_t n = getImm(ctx,6 + imm_shift);
+  uint32_t n = lrGetImm(ctx,6 + imm_shift);
   if(imm_shift == 2){
     if((n&3)!=0)compError("Offset must be divisible by 4",ctx->token);
     enc += ((n>>6)&3) << 7;
@@ -130,9 +130,9 @@ void encodeRvcClCs(CompContext*ctx, uint16_t enc, uint32_t imm_shift, bool float
   nextTokenEnforceExistence(ctx);
   enc += (float_reg ? parseRvcFloatReg(ctx->token) : parseRvcIntReg(ctx->token)) << 2;
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression expected",ctx->token);
-  uint32_t n = getImm(ctx, 5 + imm_shift);
+  uint32_t n = lrGetImm(ctx, 5 + imm_shift);
   if(imm_shift == 2){
     if((n&3)!=0)compError("Offset must be divisible by 4",ctx->token);
     enc += ((n>>6)&1)<<5;
@@ -157,8 +157,8 @@ void encodeRvcClCs(CompContext*ctx, uint16_t enc, uint32_t imm_shift, bool float
 void encodeRvcCj(CompContext*ctx, uint16_t enc){
   Symbol*sym;
   nextTokenEnforceExistence(ctx);
-  if(lrParseExpression(ctx)){
-    uint32_t n = getImm(ctx,12);
+  if(lrParseNumber(ctx)){
+    uint32_t n = lrGetImm(ctx,12);
     if((n&1)!=0)compError("Jump Offset must be divisible by 2",ctx->token);
     enc += ((n>>5)&1)<<2;
     enc += ((n>>1)&7)<<3;
@@ -170,10 +170,7 @@ void encodeRvcCj(CompContext*ctx, uint16_t enc){
     enc += ((n>>11)&1)<<12;
   }
   else if(tryCompRelocation(ctx,R_RISCV_RVC_JUMP));
-  else if((sym = getSymbol(ctx, ctx->token))){
-    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_JUMP,0);
-    ctx->token = ctx->token->next;
-  }
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_RVC_JUMP));
   else compError("Offset, Relocation or Symbol expected",ctx->token);
   insert2ByteCheckLineEnd(ctx,enc);
 }
@@ -193,8 +190,8 @@ void encodeRvcCb(CompContext*ctx,uint16_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseRvcIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx)){
-    uint32_t n = getImm(ctx,9);
+  if(lrParseNumber(ctx)){
+    uint32_t n = lrGetImm(ctx,9);
     if((n&1)!=0)compError("Offset must be divisible by 2",ctx->token);
     enc += ((n>>5)&1)<<2;
     enc += ((n>>1)&3)<<3;
@@ -203,10 +200,7 @@ void encodeRvcCb(CompContext*ctx,uint16_t enc){
     enc += ((n>>8)&1)<<12;
   }
   else if(tryCompRelocation(ctx,R_RISCV_RVC_BRANCH));
-  else if((sym = getSymbol(ctx,ctx->token))){
-    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_BRANCH,0);
-    ctx->token = ctx->token->next;
-  }
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_RVC_BRANCH));
   else compError("Offset, Relocation or Symbol expected",ctx->token);
   insert2ByteCheckLineEnd(ctx,enc);
 }
@@ -218,9 +212,9 @@ void encodeRvcLi(CompContext*ctx){
   if(n==0)compError("Register must not be zero",ctx->token);
   enc += n << 7;
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression Expected",ctx->token);
-  n = getImm(ctx,6);
+  n = lrGetImm(ctx,6);
   enc += (n&31)<<2;
   enc += ((n>>5)&1)<<12;
   insert2ByteCheckLineEnd(ctx,enc);
@@ -234,17 +228,14 @@ void encodeRvcLui(CompContext*ctx){
   if(n==0||n==2)compError("Register must not be 0 or 2",ctx->token);
   enc += n << 7;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx)){
-    n = getImm(ctx, 18) >> 12;
+  if(lrParseNumber(ctx)){
+    n = lrGetImm(ctx, 18) >> 12;
     if(n==0)compError("Upper Immediate must not be 0",ctx->token);
     enc += (n&31)<<2;
     enc += ((n>>5)&1)<<12;
   }
   else if(tryCompRelocation(ctx,R_RISCV_RVC_LUI));
-  else if((sym = getSymbol(ctx,ctx->token))){
-    addRelaEntry(ctx,ctx->section->index,sym,R_RISCV_RVC_LUI,0);
-    ctx->token = ctx->token->next;
-  }
+  else if(tryCompImplicitRelocation(ctx,R_RISCV_RVC_LUI));
   else compError("Offset, Relocation or Symbol expected",ctx->token);
   insert2ByteCheckLineEnd(ctx,enc);
 }
@@ -255,9 +246,9 @@ void encodeRvcCi(CompContext*ctx,uint16_t enc, bool imm_zero){
   if(n==0)compError("Register must not be 0",ctx->token);
   enc += n << 7;
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression Expected",ctx->token);
-  n = getImm(ctx,6);
+  n = lrGetImm(ctx,6);
   if(!imm_zero && n==0)
     compError("Immediate Value must not be 0",ctx->token);
   enc += (n&31)<<2;
@@ -268,9 +259,9 @@ void encodeRvcCi(CompContext*ctx,uint16_t enc, bool imm_zero){
 void encodeRvcAddi16sp(CompContext*ctx){
   uint16_t enc = 0x6101;
   nextTokenEnforceExistence(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression Expected",ctx->token);
-  uint32_t n = getImm(ctx,10);
+  uint32_t n = lrGetImm(ctx,10);
   if((n&15)!=0)compError("Immediate Value must be divisible by 16",ctx->token);
   enc += ((n>>5)&1)<<2;
   enc += ((n>>7)&3)<<3;
@@ -286,9 +277,9 @@ void encodeRvcAddi4spn(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
   enc += parseRvcIntReg(ctx->token) << 2;
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression expected",ctx->token);
-  uint32_t uimm = getUImm(ctx,10);
+  uint32_t uimm = lrGetUImm(ctx,10);
   if(uimm==0 || (uimm&3)!=0)
     compError("Immediate value must be divisible by 4 and not be 0",ctx->token);
   enc += ((uimm>>3)&1)<<5;
@@ -302,9 +293,9 @@ void encodeRvcCbMisc(CompContext*ctx, uint16_t enc, bool imm_signed){
   nextTokenEnforceExistence(ctx);
   enc += parseRvcIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression expected",ctx->token);
-  uint32_t n = imm_signed ? getImm(ctx,6) : getUImm(ctx,6);
+  uint32_t n = imm_signed ? lrGetImm(ctx,6) : lrGetUImm(ctx,6);
   enc += (n&31)<<2;
   enc += ((n>>5)&1)<<13;
   insert2ByteCheckLineEnd(ctx,enc);

@@ -409,8 +409,8 @@ void encodeCsrRegister(CompContext*ctx,uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx)){
-    enc += getUImm(ctx,12) << 20;
+  if(lrParseNumber(ctx)){
+    enc += lrGetUImm(ctx,12) << 20;
     ctx->token = ctx->token->prev;
   }
   else if(ctx->token->type == Identifier){
@@ -427,8 +427,8 @@ void encodeCsrImmediate(CompContext*ctx,uint32_t enc){
   nextTokenEnforceExistence(ctx);
   enc += parseIntReg(ctx->token) << 7;
   nextTokenEnforceComma(ctx);
-  if(lrParseExpression(ctx)){
-    enc += getUImm(ctx,12) << 20;
+  if(lrParseNumber(ctx)){
+    enc += lrGetUImm(ctx,12) << 20;
     ctx->token = ctx->token->prev;
   }
   else if(ctx->token->type == Identifier){
@@ -436,9 +436,9 @@ void encodeCsrImmediate(CompContext*ctx,uint32_t enc){
   }
   else compError("CSR Reg or Arithmetic Expression expected",ctx->token);
   nextTokenEnforceComma(ctx);
-  if(!lrParseExpression(ctx))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression Expected",ctx->token);
-  enc += getUImm(ctx,5) << 15;
+  enc += lrGetUImm(ctx,5) << 15;
   insert4ByteCheckLineEnd(ctx,enc);
 }
 

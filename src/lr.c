@@ -6,6 +6,7 @@
 
 #include<stdio.h>
 
+// Used for both number and relocation
 void lrPush(CompContext*ctx, LrType type, uint32_t value, int sign, Token*token){
   LrToken*lr;
   if((lr=ctx->lrUnused)){
@@ -24,6 +25,8 @@ void lrPush(CompContext*ctx, LrType type, uint32_t value, int sign, Token*token)
   lr->token = token;
 }
 
+
+// Used for both number and relocation
 void lrPop(CompContext*ctx){
   LrToken*lr = ctx->lrHead;
   if(!lr)return;
@@ -32,6 +35,7 @@ void lrPop(CompContext*ctx){
   ctx->lrUnused = lr;
 }
 
+// Used only for Numbers
 bool lrReduceBrackets(CompContext*ctx){
   LrToken*lr_cursor = ctx->lrHead;
   if(!lr_cursor || lr_cursor->type != Lr_BracketOut) return false;
@@ -47,43 +51,7 @@ bool lrReduceBrackets(CompContext*ctx){
   return true;
 }
 
-#if 0
-bool lrReduceBrackets(CompContext*ctx){
-  bool found_num=false;
-  bool found_sym=false;
-  bool found_dot=false;
-  bool bracket_content = false;
-  LrToken*lr = ctx->lrHead;
-  if(!lr || lr->type != Lr_BracketOut) return false;
-  
-  // Advance through value tokens of unique type
-  // Halt on last value token
-  while(lr->next && lr->next->type & (Lr_Mask_Value)){
-    if     ( !found_num && lr->next->type == Lr_Number )
-      found_num = true;
-    else if( !found_sym && lr->next->type == Lr_Symbol )
-      found_sym = true;
-    else if( !found_dot && lr->next->type == Lr_DotSymbol )
-      found_dot = true;
-    else return false;
-    bracket_content = true;
-    lr = lr->next;
-  }
-  // Enforce Bracket Content
-  if(!bracket_content) return false;
-  // Check for Bracket In
-  if(!lr->next || lr->next->type != Lr_BracketIn) return false;
-  LrToken*lr_bracket_in = lr->next;
-  // Remove Bracket in
-  lr->next = lr_bracket_in->next;
-  lr_bracket_in->next = ctx->lrUnused;
-  ctx->lrUnused = lr_bracket_in;
-  // Remove Bracket out
-  lrPop(ctx);
-  return true;
-}
-#endif
-
+// Only reduces Numbers
 bool lrReduceBinaryOperator(CompContext*ctx, LrType type){
   LrToken*lr = ctx->lrHead;
   if( !lr || lr->type != Lr_Number )
@@ -157,6 +125,7 @@ bool lrReduceBinaryOperator(CompContext*ctx, LrType type){
 }
 
 // Reduce Preceeding Sign into Value Token
+// Only for Numbers
 bool lrReduceUnaryOperator(CompContext*ctx){
   LrToken*lr_value = ctx->lrHead;
   if(!lr_value) return false;
@@ -176,7 +145,7 @@ bool lrReduceUnaryOperator(CompContext*ctx){
   return true;
 }
 
-
+// Both Numbers and Relocations
 bool lrReduceConstant(CompContext*ctx){
   if(ctx->lrHead && ctx->lrHead->type == Lr_Constant){
     Constant*con = getConstant(ctx,ctx->lrHead->token);
@@ -189,6 +158,7 @@ bool lrReduceConstant(CompContext*ctx){
   return false;
 }
 
+// Only Symbols / Relocations
 bool lrReduceMoveSym(CompContext*ctx, LrType sym_type){
   LrToken*lr_advance = ctx->lrHead;
   LrToken*lr_pre_move = NULL;
@@ -232,7 +202,7 @@ bool lrReduceMoveSym(CompContext*ctx, LrType sym_type){
   return true;
 }
 
-
+// Both Numbers and Relocations; Maybe differentiate?
 LrType lrLookahead(CompContext*ctx){
   if(!ctx->token) return 0;
   switch(ctx->token->type){
@@ -263,6 +233,7 @@ LrType lrLookahead(CompContext*ctx){
   }
 }
 
+// Both Numbers and Relocations; Maybe differentiate
 bool lrShift(CompContext*ctx){
   LrType type = lrLookahead(ctx);
   if( type == 0 ) return false;
@@ -298,6 +269,7 @@ bool lrShift(CompContext*ctx){
   return true;
 }
 
+// Both, parse_symbol differentiates
 // { { [Dot] } [Symbol] } [Number]
 bool lrAccept(CompContext*ctx, bool parse_symbol){
   LrToken*tok = ctx->lrHead;
@@ -318,7 +290,6 @@ bool lrAccept(CompContext*ctx, bool parse_symbol){
   return true;
 }
 
-
 bool lrParseExpression(CompContext*ctx, bool parse_symbol){
   // Cleanup Old Stuff
   ctx->lrBracketDepth = 0;
@@ -326,6 +297,8 @@ bool lrParseExpression(CompContext*ctx, bool parse_symbol){
     lrPop(ctx);
   
   Token*backupToken = ctx->token;
+
+  LrType type_lookahead = 0;
 
   // LR1
   while(true){
@@ -337,8 +310,7 @@ bool lrParseExpression(CompContext*ctx, bool parse_symbol){
     if(lrReduceConstant(ctx)) continue;
     if(lrReduceBrackets(ctx)) continue;
 
-
-    LrType type_lookahead = lrLookahead(ctx);
+    type_lookahead = lrLookahead(ctx);
 
     if(type_lookahead == Lr_Rem){
       lrShift(ctx);
@@ -376,6 +348,12 @@ bool lrParseExpression(CompContext*ctx, bool parse_symbol){
     if(lrReduceMoveSym(ctx, Lr_Symbol)) continue;
     if(lrReduceMoveSym(ctx, Lr_DotSymbol)) continue;
 
+    // Bracket In can only occur at the beginnig, after an operator or after another Bracket In
+    // Bracket In can not occur after Bracket Out or after a Number
+    if(type_lookahead == Lr_BracketIn)
+      if(ctx->lrHead && ctx->lrHead->type & (Lr_Number | Lr_BracketOut) )
+	break;
+ 
     if(lrShift(ctx))
       continue;
 
@@ -398,6 +376,17 @@ bool lrParseExpression(CompContext*ctx, bool parse_symbol){
   return false;
 
 }
+
+
+bool lrParseNumber(CompContext*ctx){
+  return lrParseExpression(ctx,false);
+}
+
+bool lrParseRelocation(CompContext*ctx){
+  return lrParseExpression(ctx,true);
+}
+
+
 
 uint32_t lrGetUInt(CompContext*ctx){
   if(!ctx->lrHead)
@@ -428,6 +417,15 @@ uint32_t lrGetImm(CompContext*ctx, uint32_t bits){
   if(false)
     compError("Value out of range",ctx->token);
   return n & ( ( 1 << bits ) -1 );
+}
+
+int32_t lrGetNumberSign(CompContext*ctx){
+  if(!ctx->lrHead){
+    compError("No Number was parsed",ctx->token);
+    return 0;
+  }
+  else
+    return ctx->lrHead->sign;
 }
 
 Token*lrGetSymbol(CompContext*ctx){

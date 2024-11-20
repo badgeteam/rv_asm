@@ -65,7 +65,7 @@ bool isRelTypePcrel(uint32_t type){
 
 bool tryCompImplicitRelocation(CompContext*ctx,uint32_t type){
   Token*backupToken = ctx->token;
-  if(!lrParseExpression(ctx,true)) return false;
+  if(!lrParseRelocation(ctx)) return false;
   if(isRelTypePcrel(type) != lrIsPcrel(ctx)){
     ctx->token = backupToken;
     return false;
@@ -140,7 +140,7 @@ bool tryCompRelocation(CompContext*ctx,uint32_t type){
   if(ctx->token->type != BracketIn)
     goto fail;
 
-  if(!lrParseExpression(ctx, true))
+  if(!lrParseRelocation(ctx))
     goto fail;
   if(lrIsPcrel(ctx))
     compError("Dot Symbols cannot occur inside a %relocation() statement",ctx->token);

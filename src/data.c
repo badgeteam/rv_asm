@@ -59,7 +59,7 @@ void encodeAscii(CompContext*ctx, bool zero_terminated){
 void encodeZeros(CompContext*ctx){
   nextTokenEnforceExistence(ctx);
 
-  if(!lrParseExpression(ctx, false))
+  if(!lrParseNumber(ctx))
     compError("Arithmetic Expression expected",ctx->token);
   enforceNewlineEOF(ctx);
   uint32_t size = lrGetUInt(ctx);
@@ -82,7 +82,7 @@ void encodeByte(CompContext*ctx){
     if(ctx->pass == INDEX)
       ctx->section->size ++;
     else{
-      if(lrParseExpression(ctx, false)){
+      if(lrParseNumber(ctx)){
 	ctx->token = ctx->token->prev;
 	ctx->section->buff[ctx->section->index] = lrGetUImm(ctx,8);
       }else if(ctx->token->type == Char){
@@ -116,7 +116,7 @@ void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
   do{
 
     if(log2size == 1){
-      if(!lrParseExpression(ctx,false))
+      if(!lrParseNumber(ctx))
 	compError("Arithmetic Expression expected",ctx->token);
       if(lrGetNumberSign(ctx) == 1)
         *((uint16_t*)(ctx->section->buff+ctx->section->index)) = (uint16_t)lrGetUImm(ctx, 16);
@@ -125,7 +125,7 @@ void encodeBytes(CompContext*ctx,uint32_t log2size, bool flag_align){
     }
 
     else if(log2size == 2){
-      if(lrParseExpression(ctx,false)){
+      if(lrParseNumber(ctx)){
 	if(lrGetNumberSign(ctx) == 1)
 	  *((uint32_t*)(ctx->section->buff+ctx->section->index)) = lrGetUInt(ctx);
 	else
